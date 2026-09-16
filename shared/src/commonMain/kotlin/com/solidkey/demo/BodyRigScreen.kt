@@ -43,6 +43,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -56,6 +57,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.solidkey.painpoints.image.OGImageView
+import com.solidkey.painpoints.shape.OGPolygonShape
 import com.solidkey.painpoints.shape.OGShapeType
 import com.solidkey.painpoints.source.OGSourceType
 import kotlin.math.PI
@@ -79,17 +81,42 @@ import kotlin.math.sin
  * verbatim from [CropEditor]. The rig itself and every animation are pure commonMain demo code
  * (identical on Android & iOS) with **zero library change** — the neck is just one more joint.
  */
+/**
+ * The head outline the AI traced on the bundled sample photo ([avatar_ozge]), expressed in the
+ * library's normalized 0..1 lasso space — exactly the kind of vertex list a segmentation model OR an
+ * on-image finger-draw produces. Fed to [OGPolygonShape] it clips the photo to JUST the head — no
+ * shoulders, shirt or couch — with no external editor. (Traced for the sample at 1× center framing.)
+ */
+private val AVATAR_HEAD_OUTLINE: Shape = OGPolygonShape.of(
+    0.48f to 0.02f, 0.64f to 0.04f, 0.78f to 0.10f, 0.86f to 0.22f,
+    0.88f to 0.38f, 0.84f to 0.54f, 0.73f to 0.69f, 0.59f to 0.79f,
+    0.48f to 0.83f, 0.37f to 0.79f, 0.25f to 0.68f, 0.16f to 0.53f,
+    0.13f to 0.38f, 0.15f to 0.22f, 0.24f to 0.09f, 0.35f to 0.03f,
+)
+
+/**
+ * The chin's y in [AVATAR_HEAD_OUTLINE] (its lowest point, ≈0.83 of the head box). The lasso leaves
+ * the box empty below this, so the neck joint is pinned here — not at the box bottom — to seat the
+ * head against the torso with no floating gap.
+ */
+private const val LASSO_CHIN_FRAC = 0.83f
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun BodyRigScreen() {
     // The image the user turns into a head. Defaults to a bundled sample so the body opens complete;
     // the shared picker (samples · device gallery · URL) lets them drop in their own — same as crop.
-    var photo by remember { mutableStateOf<PhotoSource>(PHOTO_CHOICES.first().toPhotoSource()) }
+    var photo by remember { mutableStateOf<PhotoSource>(PhotoSource.Resource("avatar_ozge", "Özge")) }
 
     // How the head photo is clipped + framed — reusing the crop screen's shape / zoom / alignment.
     var headShape by remember { mutableStateOf(OGShapeType.CIRCLE) }
     var zoom by remember { mutableStateOf(1f) }
     var bias by remember { mutableStateOf(Offset.Zero) }
+
+    // ✂️ Cut out JUST the head with the library's new free-form lasso (OGPolygonShape). Default ON for
+    // the sample so the body opens with only the head — no shoulders/couch. Picking a built-in shape
+    // turns it off. When on, the AI-traced outline needs the sample at 1× center framing.
+    var useLasso by remember { mutableStateOf(true) }
 
     // "Setting the joint": how big the head is and how the neck tilts it. These two sliders ARE the
     // neck joint — headSize is the segment length, neckTilt is its resting rotationZ at the pivot.
@@ -97,7 +124,7 @@ fun BodyRigScreen() {
     var neckTilt by remember { mutableStateOf(0f) }     // degrees, added on top of the dynamic bob
 
     // The chosen dynamic. Idle = a gentle breathing loop so the assembled body is alive on arrival.
-    var move by remember { mutableStateOf(Move.Idle) }
+    var move by remember { mutableStateOf(Move.Wave) }
 
     var stagePx by remember { mutableStateOf(IntSize.Zero) }
     val density = LocalDensity.current
@@ -153,6 +180,7 @@ fun BodyRigScreen() {
                     pose = pose,
                     headSrc = src,
                     headShape = headShape,
+                    headClip = if (useLasso) AVATAR_HEAD_OUTLINE else null,
                     headSizeFrac = headSize,
                     headZoom = zoom,
                     headBias = bias,
@@ -195,45 +223,63 @@ fun BodyRigScreen() {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // ✂️ The new library primitive: a free-form polygon lasso that cuts out JUST the head.
+            FilterChip(
+                selected = useLasso,
+                onClick = { useLasso = true },
+                leadingIcon = { Text("✂️", fontSize = 14.sp) },
+                label = { Text("Head lasso") }
+            )
             CROP_SHAPE_CHOICES.forEach { choice ->
                 FilterChip(
-                    selected = headShape == choice.type,
-                    onClick = { headShape = choice.type },
+                    selected = !useLasso && headShape == choice.type,
+                    onClick = { useLasso = false; headShape = choice.type },
                     leadingIcon = { Text(choice.glyph, fontSize = 14.sp) },
                     label = { Text(choice.label) }
                 )
             }
         }
+        Text(
+            "✂️ Head lasso = the library's new OGPolygonShape: a free-form outline made of line " +
+                "segments (normalized 0..1 points). It's AI-friendly — these vertices were traced by " +
+                "the AI on the sample photo, so it clips to just the head with no external tool. Pick " +
+                "a built-in shape below to switch back to circle/triangle/… framing.",
+            fontSize = 11.sp,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
+        )
 
         // ── Frame the face (reused crop controls: zoom + a 3×3 focal grid) ────────────
-        Text("Frame the face — zoom: ${(zoom * 10).roundToInt() / 10f}×", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-        Slider(value = zoom, onValueChange = { zoom = it }, valueRange = MIN_ZOOM..MAX_ZOOM)
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            ALIGN_GRID.forEach { row ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    row.forEach { choice ->
-                        val selected = bias == choice.bias
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(36.dp)
-                                .background(
-                                    if (selected) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.surfaceVariant,
-                                    RoundedCornerShape(8.dp)
+        // Only meaningful for the built-in shapes; the lasso already traces the head exactly.
+        if (!useLasso) {
+            Text("Frame the face — zoom: ${(zoom * 10).roundToInt() / 10f}×", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            Slider(value = zoom, onValueChange = { zoom = it }, valueRange = MIN_ZOOM..MAX_ZOOM)
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                ALIGN_GRID.forEach { row ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        row.forEach { choice ->
+                            val selected = bias == choice.bias
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(36.dp)
+                                    .background(
+                                        if (selected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.surfaceVariant,
+                                        RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable { bias = choice.bias },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    choice.glyph,
+                                    fontSize = 16.sp,
+                                    color = if (selected) MaterialTheme.colorScheme.onPrimary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                .clickable { bias = choice.bias },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                choice.glyph,
-                                fontSize = 16.sp,
-                                color = if (selected) MaterialTheme.colorScheme.onPrimary
-                                else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            }
                         }
                     }
                 }
@@ -281,6 +327,7 @@ private fun BodyFigure(
     pose: Pose,
     headSrc: OGSourceType,
     headShape: OGShapeType,
+    headClip: Shape?,
     headSizeFrac: Float,
     headZoom: Float,
     headBias: Offset,
@@ -361,28 +408,38 @@ private fun BodyFigure(
             brush = armBrush, density = density,
         )
 
-        // Head — the user's shape-clipped photo, pinned at its bottom-center (the neck pixel).
-        val neckGap = stageH * 0.012f
+        // Head — the user's shape-clipped photo, pinned at the neck joint. For a built-in shape the
+        // photo fills the whole box so the neck is the box bottom; for the lasso the head ends at the
+        // chin (LASSO_CHIN_FRAC), so the neck is there — pin THAT to the torso so the head isn't left
+        // floating above the empty tail of the box.
+        val neckFrac = if (headClip != null) LASSO_CHIN_FRAC else 1f
+        // Where the neck meets the torso: a small gap for shapes, a slight overlap for the lasso so the
+        // chin tucks against the body.
+        val neckJoin = if (headClip != null) -stageH * 0.006f else stageH * 0.012f
         Box(
             modifier = Modifier
                 .offset {
                     IntOffset(
                         (cx - headPx / 2f).roundToInt(),
-                        (torsoTopY - neckGap - headPx).roundToInt()
+                        // box top so that (box top + neckFrac*headPx) — the neck — sits at torsoTopY - neckJoin
+                        (torsoTopY - neckJoin - neckFrac * headPx).roundToInt()
                     )
                 }
                 .size(px(headPx), px(headPx))
                 .graphicsLayer {
-                    transformOrigin = TransformOrigin(0.5f, 1f) // the neck
+                    transformOrigin = TransformOrigin(0.5f, neckFrac) // the neck (chin for the lasso)
                     rotationZ = neckTilt + pose.neck
                 }
         ) {
             OGImageView(
                 source = headSrc,
                 displayShape = headShape,
+                // ✂️ When the lasso is active, clip to the traced head outline; the outline is defined
+                // in image space, so pin framing to 1× center so it lines up with the photo.
+                clipShape = headClip,
                 cornerRadius = (headPx * 0.16f).let { px(it) },
-                contentScale = cropContentScale(crop = true, zoom = headZoom),
-                alignment = BiasAlignment(headBias.x, headBias.y),
+                contentScale = cropContentScale(crop = true, zoom = if (headClip != null) 1f else headZoom),
+                alignment = if (headClip != null) BiasAlignment(0f, 0f) else BiasAlignment(headBias.x, headBias.y),
                 modifier = Modifier.fillMaxSize(),
                 onError = {},
                 onEventTriggered = { _, _ -> }
