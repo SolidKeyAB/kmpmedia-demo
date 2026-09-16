@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "241706876425",
+    "project_id": "book-of-life-da928",
+    "storage_bucket": "book-of-life-da928.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:241706876425:android:f930cb9aa323630adbc2d8",
+        "android_client_info": {
+          "package_name": "com.solidkey.bookoflife"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "241706876425-0qjdpifg4g4o0uag2f2oe742b4hcade1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.solidkey.bookoflife",
+            "certificate_hash": "b30488c290e768f0fcc304eae75ecf7d55906e80"
+          }
+        },
+        {
+          "client_id": "241706876425-70fq45ojd37tgjntse1s37u2jo0o1k5n.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCMRVlZ6rj58TYw3bo6QMPBgWunL8DfdP4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "241706876425-70fq45ojd37tgjntse1s37u2jo0o1k5n.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "241706876425-hk734ekpfqhm26dfj8fi4nkdn17d7bi0.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.solidkey.bookoflife"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

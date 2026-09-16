@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="200" height="200">
+    <defs>
+        <pattern id="polygonPattern" width="20" height="20" patternUnits="userSpaceOnUse">
+            <polygon points="10,0 0,20 20,20" fill="green" />
+        </pattern>
+    </defs>
+
+    <rect x="10" y="10" width="180" height="180" fill="url(#polygonPattern)" stroke="black" />
+</svg>

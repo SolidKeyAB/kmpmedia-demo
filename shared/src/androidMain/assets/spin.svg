@@ -1,0 +1,9 @@
+<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <!-- Gold sparkle that spins around its centre. Inscribed within r=35 so the
+         rotating points never leave the 100x100 box (no clipping). -->
+    <polygon points="50,15 63,37 85,50 63,63 50,85 37,63 15,50 37,37"
+             fill="#FFD24E" stroke="#B8860B" stroke-width="3">
+        <animateTransform attributeName="transform" type="rotate"
+            from="0 50 50" to="360 50 50" dur="1.5s" repeatCount="indefinite"/>
+    </polygon>
+</svg>

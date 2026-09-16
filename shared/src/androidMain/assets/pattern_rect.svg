@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1">
+    <!-- Define the pattern -->
+    <defs>
+        <pattern id="checkerPattern" width="20" height="20" patternUnits="userSpaceOnUse">
+            <rect x="0" y="0" width="10" height="10" fill="blue" />
+            <rect x="10" y="10" width="10" height="10" fill="blue" />
+        </pattern>
+    </defs>
+
+    <!-- Use the pattern as a fill for a rectangle -->
+    <rect x="10" y="10" width="350" height="280" fill="url(#checkerPattern)" stroke="black" />
+</svg>

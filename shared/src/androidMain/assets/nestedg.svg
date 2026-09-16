@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="350" height="400" version="1.0">
+<defs>
+        <!-- Base Gradient -->
+        <linearGradient id="baseGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="red" />
+            <stop offset="100%" stop-color="blue" />
+        </linearGradient>
+
+        <!-- Intermediate Gradient Inheriting from Base -->
+        <linearGradient id="intermediateGradient" xlink:href="#baseGradient">
+            <stop offset="50%" stop-color="yellow" />
+        </linearGradient>
+
+        <!-- Final Gradient Inheriting from Intermediate -->
+        <linearGradient id="finalGradient" xlink:href="#intermediateGradient">
+            <stop offset="25%" stop-color="green" />
+            <stop offset="75%" stop-color="purple" />
+        </linearGradient>
+    </defs>
+
+    <!-- Rectangles to demonstrate gradient usage -->
+    <rect x="10" y="10" width="180" height="50" fill="url(#baseGradient)" />
+    <rect x="10" y="70" width="180" height="50" fill="url(#intermediateGradient)" />
+    <rect x="10" y="130" width="180" height="50" fill="url(#finalGradient)" />
+</svg>
