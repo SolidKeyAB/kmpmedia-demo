@@ -36,6 +36,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -64,8 +65,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.util.lerp
+import com.solidkey.painpoints.audio.playing.OGAudioClip
+import com.solidkey.painpoints.audio.playing.OGAudioSprite
 import com.solidkey.painpoints.depth.OGDepthConfig
 import com.solidkey.painpoints.depth.ogDepth
+import com.solidkey.painpoints.source.OGSource
 import com.solidkey.painpoints.image.OGImageView
 import com.solidkey.painpoints.image.animating.OGAnimatedContainer
 import com.solidkey.painpoints.image.animating.OGAnimatedImage
@@ -359,6 +363,24 @@ fun UfoGameScreen() {
         var hitTick by remember { mutableStateOf(0) }   // bumps on every hazard hit → flash
         val sprites = remember { mutableStateListOf<Sprite>() }
 
+        // ── Sound effects (dogfoods KMPMedia 1.5.0: audio sprites) ──────────────────────────────
+        // ONE tiny sfx.mp3 packs three sounds back to back; OGAudioSprite fires the right SLICE per
+        // game event — a bright chime on a catch (0–280ms), a low thud on a hit (400–750ms), a sweep
+        // on level-up (900ms→end) — overlapping via its voice pool. No per-sound files or loading.
+        val sfx = OGAudioSprite.create()
+        DisposableEffect(Unit) {
+            sfx.load(
+                source = OGSource.Resource("sfx"),
+                clips = listOf(
+                    OGAudioClip("collect", startMs = 0, endMs = 280),
+                    OGAudioClip("hit", startMs = 400, endMs = 750),
+                    OGAudioClip("levelup", startMs = 900),   // no end → plays to the file end
+                ),
+                onError = { },
+            )
+            onDispose { sfx.release() }
+        }
+
         // ---- Player-authored objects (the "settings of the game") ----
         // Cropped photos the player added via the ⚙️ Customize screen. They spawn among the
         // hazards during play; kept across restarts of a session so tuning them is quick.
@@ -535,22 +557,31 @@ fun UfoGameScreen() {
                     }
                     if (hits.isNotEmpty()) {
                         sprites.removeAll(hits)
+                        var didCollect = false   // caught a star / bonus photo → chime
+                        var didHit = false       // took damage → thud
                         for (s in hits) {
                             when {
                                 s.kind == Kind.STAR -> {
                                     hp = (hp + 1).coerceAtMost(MAX_HP)   // repair
                                     score += 2f                          // bonus
+                                    didCollect = true
                                 }
                                 // A player's "collect" photo is a bonus — catching it scores, no damage.
                                 s.kind == Kind.CUSTOM && s.custom?.role == ObjectRole.COLLECT -> {
                                     score += 3f
+                                    didCollect = true
                                 }
                                 else -> {
                                     hp -= 1                              // damage (hazards + "dodge" photos)
                                     hitTick += 1
+                                    didHit = true
                                 }
                             }
                         }
+                        // Fire one SFX slice per event type this frame; the sprite's voice pool lets a
+                        // chime and a thud overlap if both happened at once.
+                        if (didCollect) sfx.play("collect")
+                        if (didHit) sfx.play("hit")
                         if (hp <= 0) {
                             best = max(best, score)
                             phase = Phase.GAME_OVER
@@ -642,6 +673,7 @@ fun UfoGameScreen() {
         LaunchedEffect(level, phase) {
             if (phase == Phase.PLAYING && level > 1) {
                 banner = level
+                sfx.play("levelup")             // celebratory sweep — the 3rd slice of the sprite
                 pop.snapTo(1.35f)
                 pop.animateTo(1f, spring(dampingRatio = 0.35f, stiffness = Spring.StiffnessLow))
                 delay(1300)

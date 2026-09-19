@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		00478B582D43A33D00F8BFAA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 00478B572D43A33D00F8BFAA /* Assets.xcassets */; };
 		0068120F2D4D2193007AAAC1 /* SoundHelix-Song-1.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 0068120E2D4D2193007AAAC1 /* SoundHelix-Song-1.mp3 */; };
+		DEADBEEF0000000000000102 /* sfx.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = DEADBEEF0000000000000101 /* sfx.mp3 */; };
 		006812112D4D7D39007AAAC1 /* happy_icon.png in Resources */ = {isa = PBXBuildFile; fileRef = 006812102D4D7D39007AAAC1 /* happy_icon.png */; };
 		00AF7A7E01000000000000A1 /* avatar_ozge.jpeg in Resources */ = {isa = PBXBuildFile; fileRef = 00AF7A7E01000000000000A2 /* avatar_ozge.jpeg */; };
 		006812182D53A297007AAAC1 /* bird_video.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 006812172D53A297007AAAC1 /* bird_video.mp4 */; };
@@ -53,6 +54,7 @@
 /* Begin PBXFileReference section */
 		00478B572D43A33D00F8BFAA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		0068120E2D4D2193007AAAC1 /* SoundHelix-Song-1.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "SoundHelix-Song-1.mp3"; sourceTree = "<group>"; };
+		DEADBEEF0000000000000101 /* sfx.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = sfx.mp3; sourceTree = "<group>"; };
 		006812102D4D7D39007AAAC1 /* happy_icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = happy_icon.png; sourceTree = "<group>"; };
 		00AF7A7E01000000000000A2 /* avatar_ozge.jpeg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = avatar_ozge.jpeg; sourceTree = "<group>"; };
 		006812172D53A297007AAAC1 /* bird_video.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = bird_video.mp4; sourceTree = "<group>"; };
@@ -114,6 +116,7 @@
 				006812102D4D7D39007AAAC1 /* happy_icon.png */,
 				00AF7A7E01000000000000A2 /* avatar_ozge.jpeg */,
 				0068120E2D4D2193007AAAC1 /* SoundHelix-Song-1.mp3 */,
+				DEADBEEF0000000000000101 /* sfx.mp3 */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -291,6 +294,7 @@
 				00FE0B112D785CEB00865856 /* atom.svg in Resources */,
 				00FE0B122D785CEB00865856 /* acid.svg in Resources */,
 				0068120F2D4D2193007AAAC1 /* SoundHelix-Song-1.mp3 in Resources */,
+				DEADBEEF0000000000000102 /* sfx.mp3 in Resources */,
 				058557D9273AAEEB004C7B11 /* Preview Assets.xcassets in Resources */,
 				006812182D53A297007AAAC1 /* bird_video.mp4 in Resources */,
 				006812112D4D7D39007AAAC1 /* happy_icon.png in Resources */,
