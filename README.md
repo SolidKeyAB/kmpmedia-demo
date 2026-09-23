@@ -17,6 +17,16 @@ that swaps the backdrop to a new sector. The exact same `commonMain` code drives
 |:---:|:---:|
 | ![UFO Dodge on Android](doc/ufo-dodge-demo.gif) | ![UFO Dodge on iOS](doc/ios-ufo-dodge-demo.gif) |
 
+And the **Runtime-editable SVG** screen — one `.svg` parsed *once*, then any node
+changed by its `id` at runtime (recolour / rotate / move), bound to Compose state.
+A slider only mutates an `overrides` map keyed by node id and the same gauge redraws
+live — the needle rotates and the arc + status dot recolour green→amber→red, with no
+re-parse. Identical `commonMain` code on both platforms:
+
+| Android (emulator) | iOS (simulator) |
+|:---:|:---:|
+| ![Runtime-editable SVG gauge on Android](doc/runtime-svg-demo.gif) | ![Runtime-editable SVG gauge on iOS](doc/ios-runtime-svg-demo.gif) |
+
 ## What's inside
 
 | Section | What it shows |
