@@ -1,6 +1,8 @@
 package com.solidkey.demo
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -57,7 +59,7 @@ fun RuntimeSvgScreen() {
     )
 
     Column(
-        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text(
@@ -111,6 +113,57 @@ fun RuntimeSvgScreen() {
             fontSize = 11.sp,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
         )
+
+        Spacer(Modifier.height(20.dp))
+
+        // ── Runtime path `d` override ─────────────────────────────────────────────
+        // The SAME overrides map can now carry a replacement path `d`: the addressed
+        // <path id="icon"> re-parses to new geometry live, without re-parsing the whole SVG.
+        var iconPath by remember { mutableStateOf<String?>(null) }
+        seedSvgFile("runtime_icon.svg", ICON_SVG) { iconPath = it }
+        var iconKey by remember { mutableStateOf("play") }
+        val iconOverrides = mapOf("icon" to OGSvgNodeOverride(pathData = ICON_PATHS.getValue(iconKey)))
+
+        Text(
+            "Change a node's path — runtime `d` override",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Text(
+            "Same idea, now the geometry: the override carries a new path `d`, so the " +
+                "<path id=\"icon\"> re-parses to a new shape live — no new node, no full re-parse. " +
+                "The building block for path morphing.",
+            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
+        )
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            val ip = iconPath
+            if (ip != null) {
+                OGSVGView(
+                    source = OGSvgFileType(ip),
+                    width = 140f,
+                    height = 140f,
+                    overrides = iconOverrides,
+                    onError = { }
+                )
+            } else {
+                Text("Preparing…", fontSize = 13.sp)
+            }
+        }
+        androidx.compose.foundation.layout.Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            ICON_LABELS.forEach { (key, label) ->
+                Button(onClick = { iconKey = key }) { Text(label) }
+            }
+        }
+        Text(
+            "overrides = mapOf(\n  \"icon\" to OGSvgNodeOverride(pathData = playOrPauseOrStopD),\n)",
+            fontSize = 11.sp,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+        )
     }
 }
 
@@ -127,3 +180,22 @@ private val GAUGE_SVG: String = """
   <circle id="status" cx="100" cy="122" r="5" fill="#22C55E"/>
 </svg>
 """.trimIndent()
+
+// A single addressable path (id="icon") on a soft disc. Its `d` is swapped at runtime by the
+// override map — one <path> node, three geometries. Initial `d` = the ▶ play triangle.
+private val ICON_SVG: String = """
+<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="50" cy="50" r="46" fill="#EEF2FF"/>
+  <path id="icon" d="M35 25 L75 50 L35 75 Z" fill="#4F46E5"/>
+</svg>
+""".trimIndent()
+
+// Replacement `d` strings for id="icon" — recognisable media glyphs (pause is two subpaths).
+private val ICON_PATHS: Map<String, String> = mapOf(
+    "play" to "M35 25 L75 50 L35 75 Z",
+    "pause" to "M35 25 H47 V75 H35 Z M53 25 H65 V75 H53 Z",
+    "stop" to "M30 30 H70 V70 H30 Z",
+)
+
+private val ICON_LABELS: List<Pair<String, String>> =
+    listOf("play" to "▶ Play", "pause" to "❚❚ Pause", "stop" to "■ Stop")
