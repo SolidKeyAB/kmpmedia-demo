@@ -36,6 +36,7 @@ enum class DemoScreen(val title: String, val emoji: String, val blurb: String) {
     Animate("Animate a Static Image", "✨", "Take a fully-static SVG and wrap it in KMPMedia's animation primitives — toggle Scale/Rotate/Fade/Slide and watch it come alive."),
     Video("Video Playback", "🎬", "Stream a clip through one cross-platform OGAVPlayer (ExoPlayer on Android, AVPlayer on iOS) and re-frame it live inside any shape — circle, triangle, diamond — with transport controls, loop, and load any URL."),
     CropShape("Crop a Photo into a Shape", "✂️", "Pick a photo and crop it into a circle, triangle or diamond — the image twin of 'Video in any shape'. It's one Compose GPU clip drawn once, so there's zero performance cost."),
+    Gif("Animated GIF", "🎞️", "Point one OGImageView at a .gif and it plays — looping frames on Android (AnimatedImageDrawable) and iOS (Skia Codec), the same code. The shape clip that crops a photo works on the moving image too."),
     Joint("Jointed Shapes (a rig)", "🦾", "Connect shape-clipped photos at a single pixel with a movable angular limit. Drag a two-link arm — each joint stops at its limit — then hit 'Let it swing' to watch a clamped pendulum. The building block for articulated rigs and motion dynamics."),
     BodyRig("Add Your Head to a Body", "🧍", "The arms, legs and torso are already rigged. Pick a photo, clip it to a shape and it becomes the head — pinned at the neck joint you set — then tap Wave / Walk / Jumping jacks / Dance and watch the whole body move, your head riding along."),
     Playground("Feature Playground", "🎛️", "Load images, SVGs, video, audio & layers from any URL/resource — tune every config live."),
@@ -56,6 +57,7 @@ fun DemoApp() {
                         DemoScreen.Animate -> AnimateScreen()
                         DemoScreen.Video -> VideoScreen()
                         DemoScreen.CropShape -> CropShapeScreen()
+                        DemoScreen.Gif -> GifScreen()
                         DemoScreen.Joint -> JointScreen()
                         DemoScreen.BodyRig -> BodyRigScreen()
                         DemoScreen.Playground -> TestMainUI()
