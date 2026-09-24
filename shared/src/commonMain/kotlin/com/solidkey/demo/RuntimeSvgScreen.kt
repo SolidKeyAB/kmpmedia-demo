@@ -1,5 +1,11 @@
 package com.solidkey.demo
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -28,7 +34,10 @@ import com.solidkey.painpoints.image.loading.OGSvgFileType
 import com.solidkey.painpoints.image.loading.seedSvgFile
 import com.solidkey.painpoints.image.svg.OGSVGView
 import com.solidkey.painpoints.image.svg.OGSvgNodeOverride
+import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
 /**
  * 🎨 Runtime-editable SVG. One `.svg` is loaded **once**; moving the slider only changes an
@@ -164,6 +173,67 @@ fun RuntimeSvgScreen() {
             fontSize = 11.sp,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
         )
+
+        Spacer(Modifier.height(20.dp))
+
+        // ── Path morphing — animated tween ────────────────────────────────────────
+        // The payoff: a <path> tweens smoothly between two shapes. Both `d` strings are
+        // parsed ONCE; a Compose infinite-transition drives morphProgress 0→1→0 and each
+        // frame only interpolates floats — no re-parse, no allocation churn — so it holds
+        // 60fps (same cost profile as the animated needle above).
+        var morphPath by remember { mutableStateOf<String?>(null) }
+        seedSvgFile("runtime_morph.svg", MORPH_SVG) { morphPath = it }
+        val morphTransition = rememberInfiniteTransition(label = "morph")
+        val morphT by morphTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1500, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "morphProgress"
+        )
+        val morphOverrides = mapOf(
+            "blob" to OGSvgNodeOverride(pathDataTo = MORPH_POLYGON_D, morphProgress = morphT)
+        )
+
+        Text(
+            "Morph a path — animated tween",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Text(
+            "The star relaxes into a ring and back, forever. The two shapes share the same command " +
+                "structure; parsed once, the frame loop only lerps the points. Same code on Android & iOS.",
+            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
+        )
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            val mp = morphPath
+            if (mp != null) {
+                OGSVGView(
+                    source = OGSvgFileType(mp),
+                    width = 180f,
+                    height = 180f,
+                    overrides = morphOverrides,
+                    onError = { }
+                )
+            } else {
+                Text("Preparing…", fontSize = 13.sp)
+            }
+        }
+        Text(
+            "morphProgress = ${(morphT * 100).roundToInt()}%",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Text(
+            "overrides = mapOf(\n  \"blob\" to OGSvgNodeOverride(pathDataTo = ringD, morphProgress = t),\n)",
+            fontSize = 11.sp,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+        )
     }
 }
 
@@ -199,3 +269,32 @@ private val ICON_PATHS: Map<String, String> = mapOf(
 
 private val ICON_LABELS: List<Pair<String, String>> =
     listOf("play" to "▶ Play", "pause" to "❚❚ Pause", "stop" to "■ Stop")
+
+// Builds a closed radial polygon `d` (M + (count-1)·L + Z) around (cx,cy). Varying only the
+// per-vertex radius while keeping count/order fixed yields two structurally-identical paths, so
+// they morph cleanly. A 10-vertex star (alternating radii) and a 10-vertex ring share this shape.
+private fun radialPath(cx: Float, cy: Float, count: Int, radiusAt: (Int) -> Float): String {
+    val sb = StringBuilder()
+    for (i in 0 until count) {
+        val a = (-90f + i * 360f / count).toDouble() * PI / 180.0
+        val r = radiusAt(i)
+        val x = cx + r * cos(a).toFloat()
+        val y = cy + r * sin(a).toFloat()
+        sb.append(if (i == 0) "M" else "L").append(' ').append(x).append(' ').append(y).append(' ')
+    }
+    sb.append("Z")
+    return sb.toString()
+}
+
+// Morph endpoints: a spiky 5-point star ⇄ a near-round 10-gon (the "ring"). Same command count.
+private val MORPH_STAR_D: String = radialPath(50f, 50f, 10) { if (it % 2 == 0) 42f else 17f }
+private val MORPH_POLYGON_D: String = radialPath(50f, 50f, 10) { 38f }
+
+// One addressable <path id="blob"> on a dark disc; its `d` starts as the star and tweens toward
+// MORPH_POLYGON_D via the override's morphProgress.
+private val MORPH_SVG: String = """
+<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="50" cy="50" r="48" fill="#0B1220"/>
+  <path id="blob" d="$MORPH_STAR_D" fill="#38BDF8"/>
+</svg>
+""".trimIndent()
