@@ -10,6 +10,7 @@ import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.Canvas
@@ -74,7 +75,11 @@ import com.solidkey.painpoints.image.OGImageView
 import com.solidkey.painpoints.image.animating.OGAnimatedContainer
 import com.solidkey.painpoints.image.animating.OGAnimatedImage
 import com.solidkey.painpoints.image.animating.OGAnimationType
+import com.solidkey.painpoints.image.loading.OGSvgFileType
 import com.solidkey.painpoints.image.loading.OGSvgResourceFileType
+import com.solidkey.painpoints.image.loading.seedSvgFile
+import com.solidkey.painpoints.image.svg.OGSVGView
+import com.solidkey.painpoints.image.svg.OGSvgNodeOverride
 import com.solidkey.painpoints.video.loading.OGVideoUrlType
 import com.solidkey.painpoints.video.playing.OGAVPlayer
 import com.solidkey.painpoints.video.playing.OGAVPlayerAction
@@ -130,7 +135,7 @@ import kotlin.random.Random
  *
  * Sprites load from bundled assets (Android `assets/`, iOS app bundle).
  */
-private enum class Kind { METEORITE, HOSTILE, STAR, COSMIC, CUSTOM, WORMHOLE }
+private enum class Kind { METEORITE, HOSTILE, STAR, COSMIC, CUSTOM, WORMHOLE, MORPH }
 private enum class Phase { READY, PLAYING, GAME_OVER }
 
 /** How the player changes the UFO's DEPTH: two-finger [PINCH] (default) or phone [TILT] (gyro). */
@@ -227,6 +232,36 @@ private val COSMIC_CLIPS = listOf(
  */
 private fun svgSideFor(boxPx: Float): Float = sqrt(100f * boxPx)
 
+// ── Shape-shifting hazard geometry (dogfoods KMPMedia 1.9.0 path morphing) ──────────────────
+// Builds a closed radial polygon `d` (M + (count-1)·L + Z) centred in the 100×100 viewBox. Two
+// shapes generated from the SAME loop — varying only the per-vertex radius — share command
+// structure, so they morph cleanly index-for-index.
+private fun radialPath(count: Int, radiusAt: (Int) -> Float): String {
+    val sb = StringBuilder()
+    for (i in 0 until count) {
+        val a = (-90f + i * 360f / count).toDouble() * PI / 180.0
+        val r = radiusAt(i)
+        val x = 50f + r * cos(a).toFloat()
+        val y = 50f + r * sin(a).toFloat()
+        sb.append(if (i == 0) "M" else "L").append(' ').append(x).append(' ').append(y).append(' ')
+    }
+    sb.append("Z")
+    return sb.toString()
+}
+
+// A spiky 6-point star (the resting shape) ⇄ a rounder studded crystal (the morph target); both
+// carry 12 vertices, so their `d` is M + 11·L + Z and lines up for a clean tween.
+private val GAME_MORPH_STAR_D: String = radialPath(12) { if (it % 2 == 0) 46f else 15f }
+private val GAME_MORPH_RING_D: String = radialPath(12) { if (it % 2 == 0) 40f else 33f }
+
+// One addressable <path id="blob">, hazard-red with a dark rim. Its `d` starts as the spiky star
+// and is tweened toward GAME_MORPH_RING_D by each MORPH sprite's morphProgress.
+private val GAME_MORPH_SVG: String = """
+<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <path id="blob" d="$GAME_MORPH_STAR_D" fill="#F43F5E" stroke="#7F1D1D" stroke-width="3"/>
+</svg>
+""".trimIndent()
+
 /** Hits the UFO can absorb before it's destroyed. Damage level = [MAX_HP] − hp (0..MAX_HP). */
 private const val MAX_HP = 5
 
@@ -274,6 +309,7 @@ private val Kind.asset: String
         Kind.COSMIC -> ""   // video object — no SVG asset (rendered via OGAVPlayer)
         Kind.CUSTOM -> ""   // user photo — no SVG asset (rendered via OGImageView)
         Kind.WORMHOLE -> "" // portal video — no SVG asset (rendered via OGAVPlayer)
+        Kind.MORPH -> ""    // shape-shifting hazard — seeded SVG rendered via OGSVGView + morph override
     }
 
 /** Per-hazard "personality": each SVG kind is a static image that KMPMedia animates differently. */
@@ -284,6 +320,7 @@ private fun Kind.animations(): Set<OGAnimationType> = when (this) {
     Kind.COSMIC -> emptySet()                                          // motion comes from VideoSpec
     Kind.CUSTOM -> emptySet()                                          // wrapped in its own container
     Kind.WORMHOLE -> emptySet()                                        // wrapped in its own container
+    Kind.MORPH -> emptySet()                                           // the path morph IS its animation
 }
 
 private fun Kind.durationMillis(): Int = when (this) {
@@ -293,6 +330,7 @@ private fun Kind.durationMillis(): Int = when (this) {
     Kind.COSMIC -> 1200
     Kind.CUSTOM -> 2400
     Kind.WORMHOLE -> 4200
+    Kind.MORPH -> 1100   // morph half-cycle (drives the infinite tween below)
 }
 
 /**
@@ -362,6 +400,13 @@ fun UfoGameScreen() {
         var hp by remember { mutableStateOf(MAX_HP) }
         var hitTick by remember { mutableStateOf(0) }   // bumps on every hazard hit → flash
         val sprites = remember { mutableStateListOf<Sprite>() }
+
+        // Shape-shifting hazard (dogfoods KMPMedia 1.9.0: path morphing). One tiny SVG with a single
+        // <path id="blob"> is seeded to disk once; each MORPH sprite renders it via OGSVGView and tweens
+        // its `d` from a spiky star to a rounder crystal and back with an infinite transition — parsed
+        // once, only floats lerp per frame, so many can shift at 60fps right inside the game.
+        var morphSvgPath by remember { mutableStateOf<String?>(null) }
+        seedSvgFile("game_morph.svg", GAME_MORPH_SVG) { morphSvgPath = it }
 
         // ── Sound effects (dogfoods KMPMedia 1.5.0: audio sprites) ──────────────────────────────
         // ONE tiny sfx.mp3 packs three sounds back to back; OGAudioSprite fires the right SLICE per
@@ -855,6 +900,42 @@ fun UfoGameScreen() {
                                     onError = { }
                                 )
                             }
+                        }
+                    } else if (s.kind == Kind.MORPH && morphSvgPath != null) {
+                        // 🫧 Shape-shifting hazard = the library's PATH MORPHING (1.9.0) dropped into
+                        // gameplay. One <path id="blob"> tweens from a spiky star to a rounder crystal
+                        // and back, driven by an infinite transition on morphProgress. Both `d` strings
+                        // are parsed ONCE + cached; per frame only floats lerp — so several can shift on
+                        // screen at 60fps. Same depth/z-order/blur (ogDepth) and collision as any hazard.
+                        val morphTransition = rememberInfiniteTransition(label = "gameMorph")
+                        val morphT by morphTransition.animateFloat(
+                            initialValue = 0f,
+                            targetValue = 1f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(Kind.MORPH.durationMillis(), easing = FastOutSlowInEasing),
+                                repeatMode = RepeatMode.Reverse
+                            ),
+                            label = "morphT"
+                        )
+                        val sideDp = with(density) { s.sizePx.toDp().value }
+                        Box(
+                            Modifier
+                                .offset { IntOffset(s.xPx.roundToInt(), s.yPx.roundToInt()) }
+                                .size(with(density) { s.sizePx.toDp() })
+                                .ogDepth(s.depth, shipDepth, SPRITE_DEPTH)
+                        ) {
+                            OGSVGView(
+                                source = OGSvgFileType(morphSvgPath!!),
+                                width = sideDp,
+                                height = sideDp,
+                                overrides = mapOf(
+                                    "blob" to OGSvgNodeOverride(
+                                        pathDataTo = GAME_MORPH_RING_D,
+                                        morphProgress = morphT
+                                    )
+                                ),
+                                onError = { }
+                            )
                         }
                     } else {
                         OGAnimatedImage(
@@ -1496,14 +1577,24 @@ private fun spawn(
     }
 
     val kind = when {
-        roll < 60 -> Kind.METEORITE
-        roll < 85 -> Kind.HOSTILE
+        roll < 55 -> Kind.METEORITE
+        roll < 74 -> Kind.HOSTILE
+        roll < 89 -> Kind.MORPH     // ~15% shape-shifting (path-morph) hazards
         else -> Kind.STAR
     }
-    val sizePx = (Random.nextInt(24, 42).toFloat()) * densityScale
+    // Morph hazards are drawn a bit bigger so the shape-shift reads clearly as it drifts.
+    val sizePx = when (kind) {
+        Kind.MORPH -> Random.nextInt(58, 92).toFloat() * densityScale
+        else -> Random.nextInt(24, 42).toFloat() * densityScale
+    }
     val x = Random.nextFloat() * (widthPx - sizePx).coerceAtLeast(1f)
-    // stars drift a touch slower so they're catchable; hazards are quicker.
-    val base = if (kind == Kind.STAR) Random.nextInt(130, 190) else Random.nextInt(160, 270)
+    // stars drift a touch slower so they're catchable; morphs a touch slower so the tween is visible;
+    // other hazards are quicker.
+    val base = when (kind) {
+        Kind.STAR -> Random.nextInt(130, 190)
+        Kind.MORPH -> Random.nextInt(120, 170)
+        else -> Random.nextInt(160, 270)
+    }
     val speed = base.toFloat() * densityScale
     return Sprite(id, kind, sizePx, x, speed, depth = Random.nextFloat())
 }
