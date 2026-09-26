@@ -17,6 +17,17 @@ that swaps the backdrop to a new sector. The exact same `commonMain` code drives
 |:---:|:---:|
 | ![UFO Dodge on Android](doc/ufo-dodge-demo.gif) | ![UFO Dodge on iOS](doc/ios-ufo-dodge-demo.gif) |
 
+Inside that game, the **shape-shifting morph hazard** dogfoods the library's SVG
+**path morphing** (`OGSvgNodeOverride.pathDataTo` + `morphProgress`): one `<path>`
+tweens between a small spiky star and a big rounded crystal, so each red hazard
+visibly **expands, contracts and re-spikes** as it drifts. Both `d` endpoints are
+parsed *once* and only floats lerp per frame — so many can breathe at 60fps with no
+per-frame parse or allocation. Same `commonMain` code on iOS:
+
+| Android (emulator) |
+|:---:|
+| ![Morph hazard — expand · contract · shape-shift](doc/ufo-morph-demo.gif) |
+
 And the **Runtime-editable SVG** screen — one `.svg` parsed *once*, then any node
 changed by its `id` at runtime (recolour / rotate / move), bound to Compose state.
 A slider only mutates an `overrides` map keyed by node id and the same gauge redraws

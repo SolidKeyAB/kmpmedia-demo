@@ -249,10 +249,13 @@ private fun radialPath(count: Int, radiusAt: (Int) -> Float): String {
     return sb.toString()
 }
 
-// A spiky 6-point star (the resting shape) ⇄ a rounder studded crystal (the morph target); both
-// carry 12 vertices, so their `d` is M + 11·L + Z and lines up for a clean tween.
-private val GAME_MORPH_STAR_D: String = radialPath(12) { if (it % 2 == 0) 46f else 15f }
-private val GAME_MORPH_RING_D: String = radialPath(12) { if (it % 2 == 0) 40f else 33f }
+// A small spiky star (contracted) ⇄ a big rounded crystal (expanded); both carry 12 vertices, so
+// their `d` is M + 11·L + Z and lines up for a clean tween. The endpoints differ in overall RADIUS
+// as well as spikiness, so morphing between them makes the hazard visibly EXPAND and CONTRACT
+// (outer points grow 30→48 ≈ 1.6×, valleys fill in 12→40) while it shape-shifts — still one radius
+// lerp per vertex per frame, so the "breathing" costs nothing beyond the plain morph.
+private val GAME_MORPH_STAR_D: String = radialPath(12) { if (it % 2 == 0) 30f else 12f }
+private val GAME_MORPH_RING_D: String = radialPath(12) { if (it % 2 == 0) 48f else 40f }
 
 // One addressable <path id="blob">, hazard-red with a dark rim. Its `d` starts as the spiky star
 // and is tweened toward GAME_MORPH_RING_D by each MORPH sprite's morphProgress.
