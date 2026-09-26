@@ -19,14 +19,14 @@ that swaps the backdrop to a new sector. The exact same `commonMain` code drives
 
 Inside that game, the **shape-shifting morph hazard** dogfoods the library's SVG
 **path morphing** (`OGSvgNodeOverride.pathDataTo` + `morphProgress`): one `<path>`
-tweens between a small spiky star and a big rounded crystal, so each red hazard
-visibly **expands, contracts and re-spikes** as it drifts. Both `d` endpoints are
-parsed *once* and only floats lerp per frame — so many can breathe at 60fps with no
-per-frame parse or allocation. Same `commonMain` code on iOS:
+tweens between a small spiky star and a big rounded crystal, so the hazard visibly
+**expands, contracts and re-spikes**. Both `d` endpoints are parsed *once* and only
+floats lerp per frame — so many can breathe at 60fps with no per-frame parse or
+allocation. Here it is up close and slowed down (same `commonMain` code on iOS):
 
-| Android (emulator) |
+| The morph hazard, up close |
 |:---:|
-| ![Morph hazard — expand · contract · shape-shift](doc/ufo-morph-demo.gif) |
+| ![Morph hazard — spiky star ⇄ round crystal, expand · contract](doc/ufo-morph-demo.gif) |
 
 And the **Runtime-editable SVG** screen — one `.svg` parsed *once*, then any node
 changed by its `id` at runtime (recolour / rotate / move), bound to Compose state.
