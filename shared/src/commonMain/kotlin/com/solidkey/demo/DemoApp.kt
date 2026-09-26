@@ -36,6 +36,7 @@ enum class DemoScreen(val title: String, val emoji: String, val blurb: String) {
     Animate("Animate a Static Image", "✨", "Take a fully-static SVG and wrap it in KMPMedia's animation primitives — toggle Scale/Rotate/Fade/Slide and watch it come alive."),
     RuntimeSvg("Runtime-editable SVG", "🎨", "Load an SVG once, then change any node by id at runtime — recolour, rotate, move — bound to Compose state. A live gauge whose needle and zones follow a slider. 'SVG as a live template', the same code on Android & iOS."),
     Video("Video Playback", "🎬", "Stream a clip through one cross-platform OGAVPlayer (ExoPlayer on Android, AVPlayer on iOS) and re-frame it live inside any shape — circle, triangle, diamond — with transport controls, loop, and load any URL."),
+    MorphClip("Morph the clip itself", "🫧", "The clip MASK animates circle → diamond → triangle → lasso while a video (and a GIF) keep playing underneath. One OGMorphShape drives every surface's clipShape — clipping moving media to a morphing outline, 60fps, same code on Android & iOS."),
     CropShape("Crop a Photo into a Shape", "✂️", "Pick a photo and crop it into a circle, triangle or diamond — the image twin of 'Video in any shape'. It's one Compose GPU clip drawn once, so there's zero performance cost."),
     Gif("Animated GIF", "🎞️", "Point one OGImageView at a .gif and it plays — looping frames on Android (AnimatedImageDrawable) and iOS (Skia Codec), the same code. The shape clip that crops a photo works on the moving image too."),
     Joint("Jointed Shapes (a rig)", "🦾", "Connect shape-clipped photos at a single pixel with a movable angular limit. Drag a two-link arm — each joint stops at its limit — then hit 'Let it swing' to watch a clamped pendulum. The building block for articulated rigs and motion dynamics."),
@@ -58,6 +59,7 @@ fun DemoApp() {
                         DemoScreen.Animate -> AnimateScreen()
                         DemoScreen.RuntimeSvg -> RuntimeSvgScreen()
                         DemoScreen.Video -> VideoScreen()
+                        DemoScreen.MorphClip -> MorphClipScreen()
                         DemoScreen.CropShape -> CropShapeScreen()
                         DemoScreen.Gif -> GifScreen()
                         DemoScreen.Joint -> JointScreen()
