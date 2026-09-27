@@ -22,7 +22,9 @@ Inside that game, the **shape-shifting morph hazard** dogfoods the library's SVG
 tweens between a small spiky star and a big rounded crystal, so the hazard visibly
 **expands, contracts and re-spikes**. Both `d` endpoints are parsed *once* and only
 floats lerp per frame — so many can breathe at 60fps with no per-frame parse or
-allocation. Here it is up close and slowed down (same `commonMain` code on iOS):
+allocation. The clip below is **deliberately slowed (~2×) and low-fps so the
+shape-shift is legible — it is *not* the real speed**; live, the morph runs
+smooth at your display's refresh rate (~60fps). (Same `commonMain` code on iOS.)
 
 | The morph hazard, up close |
 |:---:|
