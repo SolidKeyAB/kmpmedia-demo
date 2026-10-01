@@ -444,6 +444,15 @@ fun UfoGameScreen() {
         var stormActive by remember { mutableStateOf(false) }     // range cue [30%,62%) of the clip
         var starfallPending by remember { mutableStateOf(0) }     // point cue → drop N bonus stars
         var eventBanner by remember { mutableStateOf<String?>(null) }
+
+        // ── Agent "director" live-patch state: an external agent (AgentPatchBus) nudges these
+        // between frames and the running loop reads them, so the game re-tunes / re-themes / spawns
+        // waves LIVE. Defaults are identity, so with no patch the game is exactly as before.
+        var dirSpawnMul by remember { mutableStateOf(1f) }            // op="rule": spawn-rate ×
+        var dirSpeedMul by remember { mutableStateOf(1f) }            // op="rule": fall-speed ×
+        var dirFieldTint by remember { mutableStateOf<Color?>(null) } // op="theme": field colour wash
+        var dirWave by remember { mutableStateOf(0) }                 // op="wave": extra hazards to drop now
+
         // Duration is 0 until the clip reports it; derive it so cues are (re)built exactly once when known.
         val loopMs by remember { derivedStateOf { backdropController.status.value.durationMs } }
         val cues = remember(loopMs) {
@@ -473,6 +482,26 @@ fun UfoGameScreen() {
             }
         }
 
+        // ── Agent live-patch collector: external JSON patches mutate the director state; the loop
+        // picks them up next frame, so the running game changes live. Transport = AgentPatchBus (fed
+        // by MainActivity's broadcast receiver here; a nexum/Firebase channel in production). Every
+        // value is clamped on apply, so a bad patch can nudge but never brick the game.
+        LaunchedEffect(Unit) {
+            AgentPatchBus.patches.collect { json ->
+                val p = parseGamePatch(json) ?: return@collect
+                when (p.op) {
+                    "rule" -> {
+                        p.spawnMul?.let { dirSpawnMul = it.coerceIn(0.2f, 6f) }
+                        p.speedMul?.let { dirSpeedMul = it.coerceIn(0.3f, 5f) }
+                    }
+                    "theme" -> dirFieldTint = p.tint?.let { parseHexColorOrNull(it) }
+                    "banner" -> p.text?.let { eventBanner = it }
+                    "wave" -> dirWave += (p.count ?: 5).coerceIn(1, 30)
+                    "reset" -> { dirSpawnMul = 1f; dirSpeedMul = 1f; dirFieldTint = null }
+                }
+            }
+        }
+
         // Level rises every 10 survived seconds; used for difficulty + the level-up celebration.
         val level = 1 + (score / 10f).toInt()
         val damage = MAX_HP - hp   // 0 = pristine … MAX_HP = destroyed
@@ -498,6 +527,7 @@ fun UfoGameScreen() {
             warpSpin = 0f
             var last = 0L
             var spawnAcc = 0f
+            var logAcc = 0f
             var nextId = 0L
             var nextPortalAt = PORTAL_FIRST_S
             while (true) {
@@ -505,7 +535,19 @@ fun UfoGameScreen() {
                     val dt = if (last == 0L) 0f else ((now - last) / 1_000_000_000f).coerceAtMost(0.05f)
                     last = now
                     score += dt
-                    val ramp = 1f + score / 18f
+                    val ramp = (1f + score / 18f) * dirSpeedMul   // × agent speed patch
+
+                    // 1 Hz state snapshot to logcat so an external agent can observe the game it's
+                    // steering (stdout → logcat; grep "UFOSTATE"). Stands in for the state channel.
+                    logAcc += dt
+                    if (logAcc >= 1f) {
+                        logAcc = 0f
+                        println(
+                            "UFOSTATE {\"score\":${score.toInt()},\"hp\":$hp," +
+                                "\"level\":${1 + (score / 10f).toInt()},\"sprites\":${sprites.size}," +
+                                "\"spawnMul\":$dirSpawnMul,\"speedMul\":$dirSpeedMul}"
+                        )
+                    }
 
                     // While a warp is in flight the UFO is on rails (DIVE/EMERGE choreography) and the
                     // field is empty — freeze steering, spawning and collisions until it resolves.
@@ -541,11 +583,12 @@ fun UfoGameScreen() {
                     //  • STARFALL (point cue) → a quick burst of guaranteed bonus stars.
                     //  • METEOR STORM (range cue) → hazards spawn roughly twice as fast.
                     spawnAcc += dt
-                    val interval = when {
+                    val baseInterval = when {
                         starfallPending > 0 -> 0.22f                                  // rapid star burst
                         stormActive -> max(0.32f, (1.15f - score / 45f) * 0.55f)      // storm = faster
                         else -> max(0.5f, 1.15f - score / 45f)                        // normal ramp
                     }
+                    val interval = baseInterval / dirSpawnMul                         // ÷ agent spawn-rate patch
                     if (spawnAcc >= interval) {
                         spawnAcc = 0f
                         if (starfallPending > 0) {
@@ -555,6 +598,15 @@ fun UfoGameScreen() {
                             val videoCount = sprites.count { it.kind == Kind.COSMIC }
                             sprites.add(spawn(nextId++, widthPx, density.density, videoCount, customObjects))
                         }
+                    }
+
+                    // Agent-commanded wave: drop a burst of extra hazards immediately (op="wave").
+                    if (dirWave > 0) {
+                        val vc = sprites.count { it.kind == Kind.COSMIC }
+                        repeat(dirWave.coerceAtMost(30)) {
+                            sprites.add(spawn(nextId++, widthPx, density.density, vc, customObjects))
+                        }
+                        dirWave = 0
                     }
 
                     // Wormhole portal scheduler: drop one every so often (only if none is on-screen),
@@ -773,6 +825,11 @@ fun UfoGameScreen() {
                 cues = cues,                       // fires the storm / starfall events off the timeline
                 onError = { }
             )
+            // Agent live-retheme: a colour wash over the field (op="theme"). Above the storm vignette
+            // (zIndex 9) so an agent retheme clearly dominates, below the HUD/banner (zIndex 12).
+            dirFieldTint?.let { tint ->
+                Box(Modifier.fillMaxSize().zIndex(10f).background(tint))
+            }
             // Storm vignette: a soft red edge-glow while the METEOR STORM cue is active.
             if (stormActive) {
                 Box(
