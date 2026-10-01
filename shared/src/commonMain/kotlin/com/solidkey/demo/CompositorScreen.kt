@@ -44,14 +44,23 @@ import com.solidkey.painpoints.compositor.OGKeyframe
 import com.solidkey.painpoints.compositor.OGKeyframedFloat
 import com.solidkey.painpoints.compositor.OGLayerContent
 import com.solidkey.painpoints.compositor.exportGif
+import com.solidkey.painpoints.compositor.exportMp4
 import com.solidkey.painpoints.image.OGImageView
 import com.solidkey.painpoints.image.loading.OGImageFileType
 import com.solidkey.painpoints.image.loading.OGImageFormat
 import com.solidkey.painpoints.shape.OGShapeType
+import com.solidkey.painpoints.video.loading.OGVideoFileType
+import com.solidkey.painpoints.video.playing.OGAVPlayer
+import com.solidkey.painpoints.video.playing.OGAVPlayerAction
+import com.solidkey.painpoints.video.playing.OGPlayerConfig
+import com.solidkey.painpoints.video.playing.OGVideoPlaybackConfig
+import com.solidkey.painpoints.video.playing.OGVideoScale
 import com.solidkey.painpoints.shape.TriangleDirection
 import com.solidkey.painpoints.shape.TriangleShape
 import com.solidkey.painpoints.shape.DiamondShape
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 
 // ── The demo composition ──────────────────────────────────────────────────────────────────────
@@ -156,6 +165,7 @@ fun CompositorScreen() {
     val composition = remember { demoComposition() }
     val scope = rememberCoroutineScope()
     val gifSaver = rememberGifSaver()
+    val mp4Saver = rememberMp4Saver()
 
     var playing by remember { mutableStateOf(true) }
     var scrub by remember { mutableStateOf(false) }
@@ -165,6 +175,10 @@ fun CompositorScreen() {
     var exportInfo by remember { mutableStateOf<String?>(null) }
     var exportFile by remember { mutableStateOf<String?>(null) }
     var exportNonce by remember { mutableStateOf(0) }
+
+    var mp4Info by remember { mutableStateOf<String?>(null) }
+    var mp4File by remember { mutableStateOf<String?>(null) }
+    var mp4Nonce by remember { mutableStateOf(0) }
 
     Column(
         modifier = Modifier
@@ -181,8 +195,8 @@ fun CompositorScreen() {
         )
         Text(
             "Compose several layers on one timeline, animate them with keyframes, preview live at " +
-                "60fps — then export the whole thing to a single shareable animated GIF, all on device. " +
-                "No other KMP library does compose-and-export.",
+                "60fps — then export the whole thing to a shareable animated GIF or an H.264 MP4, all on " +
+                "device. No other KMP library does compose-and-export.",
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
         )
@@ -304,13 +318,76 @@ fun CompositorScreen() {
             }
         }
 
+        // ── Export to MP4 (H.264 via the OS encoder) ────────────────────────────────────
+        Button(
+            onClick = {
+                if (exporting) return@Button
+                scope.launch {
+                    exporting = true
+                    mp4Info = "Rendering ${composition.frameCount} frames → H.264…"
+                    yield() // let the label paint before the blocking encode
+                    // exportMp4 drives MediaCodec / AVAssetWriter — run it off the main thread.
+                    val bytes = withContext(Dispatchers.Default) { composition.exportMp4() }
+                    val name = "compositor_export_mp4_$mp4Nonce"
+                    val ok = bytes.isNotEmpty() && mp4Saver.save(name, bytes)
+                    if (ok) {
+                        mp4File = "$name.mp4"
+                        mp4Nonce++
+                        mp4Info = "Exported ${composition.frameCount} frames · " +
+                            "${bytes.size / 1024} KB MP4 (H.264)"
+                    } else {
+                        mp4Info = if (bytes.isEmpty()) "Encode produced no data" else "Save failed"
+                    }
+                    exporting = false
+                }
+            },
+            enabled = !exporting,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(if (exporting) "Exporting…" else "Export to MP4 (H.264)")
+        }
+        mp4Info?.let {
+            Text(it, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        }
+
+        // Play the exported MP4 back through the platform's OWN video player — proof it's a valid file.
+        mp4File?.let { fileName ->
+            Text(
+                "Played back through the platform video player (OGAVPlayer):",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .background(Color(0xFF05060F)),
+                contentAlignment = Alignment.Center
+            ) {
+                OGAVPlayer(
+                    action = OGAVPlayerAction.PLAY,
+                    source = OGVideoFileType(fileName),
+                    config = OGPlayerConfig(
+                        showDefaultControls = false,
+                        displayMovable = false,
+                        backgroundColor = Color.Transparent,
+                        contentScale = OGVideoScale.FIT,
+                        playbackConfig = OGVideoPlaybackConfig(autoStart = true, autoRepeat = true),
+                    ),
+                    modifier = Modifier.fillMaxSize(),
+                    onError = { },
+                )
+            }
+        }
+
         Spacer(Modifier.height(4.dp))
         Text(
             "Under the hood: com.solidkey.painpoints.compositor — OGComposition (canvas + durationMs/fps " +
                 "timeline + back-to-front layers), OGCompositionLayer (each track an OGKeyframedFloat, any " +
-                "Shape clip, a [startMs,endMs] window), OGCompositionView (frame-clock preview / scrubber) " +
-                "and exportGif() → the pure-Kotlin OGGifEncoder. All commonMain, zero new dependencies, " +
-                "identical on Android & iOS. See docs/COMPOSITOR.md.",
+                "Shape clip, a [startMs,endMs] window), OGCompositionView (frame-clock preview / scrubber), " +
+                "exportGif() → the pure-Kotlin OGGifEncoder, and exportMp4() → the OS H.264 encoder " +
+                "(MediaCodec / AVAssetWriter). Zero new dependencies, identical on Android & iOS. " +
+                "See docs/COMPOSITOR.md.",
             fontSize = 11.sp,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
         )
