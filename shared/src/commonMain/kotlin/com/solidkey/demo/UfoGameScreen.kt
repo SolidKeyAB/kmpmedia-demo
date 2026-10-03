@@ -542,11 +542,12 @@ fun UfoGameScreen() {
                     logAcc += dt
                     if (logAcc >= 1f) {
                         logAcc = 0f
-                        println(
-                            "UFOSTATE {\"score\":${score.toInt()},\"hp\":$hp," +
+                        val stateJson =
+                            "{\"score\":${score.toInt()},\"hp\":$hp," +
                                 "\"level\":${1 + (score / 10f).toInt()},\"sprites\":${sprites.size}," +
                                 "\"spawnMul\":$dirSpawnMul,\"speedMul\":$dirSpeedMul}"
-                        )
+                        println("UFOSTATE $stateJson")        // logcat, as before
+                        AgentStateBus.publish(stateJson)       // → transport → nexum RTDB games/.../state
                     }
 
                     // While a warp is in flight the UFO is on rails (DIVE/EMERGE choreography) and the

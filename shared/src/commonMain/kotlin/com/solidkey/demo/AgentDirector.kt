@@ -18,6 +18,19 @@ object AgentPatchBus {
 }
 
 /**
+ * The outbound half of the live-agent channel: the running game publishes a periodic state snapshot
+ * (score / hp / level / sprite count / current multipliers) here, and the platform transport forwards
+ * it to the realtime channel so the agent can observe the game it is steering. Platform-neutral and
+ * network-free — the Android transport PUTs each snapshot to nexum's RTDB `games/{ws}/{session}/state`;
+ * iOS simply doesn't collect it yet.
+ */
+object AgentStateBus {
+    // replay=1 so a transport that subscribes late still gets the latest snapshot immediately.
+    val states = MutableSharedFlow<String>(replay = 1, extraBufferCapacity = 8)
+    fun publish(json: String) { states.tryEmit(json) }
+}
+
+/**
  * One live tweak the agent can make to the running game. Flat and serialisable; validated (clamped)
  * where it is applied so a bad patch can never brick the game.
  */
