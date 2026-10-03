@@ -29,6 +29,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -42,6 +44,7 @@ import com.solidkey.painpoints.shape.OGPoint
 import com.solidkey.painpoints.shape.OGPolygonShape
 import com.solidkey.painpoints.style.OGBoil
 import com.solidkey.painpoints.style.boiled
+import com.solidkey.painpoints.style.pixelateFill
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -92,6 +95,7 @@ fun BoilingLinesScreen() {
     var amplitude by remember { mutableStateOf(0.02f) }
     var boilFps by remember { mutableStateOf(8f) }
     var smooth by remember { mutableStateOf(true) }
+    var pixelRes by remember { mutableStateOf(18f) }
 
     val boil = OGBoil(amplitude = amplitude, boilFps = boilFps, smooth = smooth)
     val blob = remember { circleOutline(56) }
@@ -135,6 +139,30 @@ fun BoilingLinesScreen() {
                     .background(Brush.linearGradient(listOf(Color(0xFFFF5DA2), Color(0xFF7B2FF7), Color(0xFF00C2A8)))),
             )
         }
+
+        // ── Pixelated boil: boil → pixelateFill (the "op pipeline") = a shimmering 8-bit sprite ──
+        Text("Pixelated · boil → pixelateFill (low-res sprite)", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .background(Color(0xFF14121A)),
+        ) {
+            val res = pixelRes.toInt().coerceAtLeast(2)
+            val w = size.width
+            val h = size.height
+            // Pipeline: boil the outline, then rasterize the boiled shape into a coarse grid.
+            val cells = pixelateFill(boil.displace(blob, timeMs), res)
+            for (c in cells) {
+                drawRect(
+                    color = Color(0xFF00E0A8),
+                    topLeft = Offset((c.x - 0.5f / res) * w, (c.y - 0.5f / res) * h),
+                    size = Size(w / res * 0.9f, h / res * 0.9f),
+                )
+            }
+        }
+        Text("Pixel resolution: ${pixelRes.toInt()}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Slider(value = pixelRes, onValueChange = { pixelRes = it }, valueRange = 6f..36f)
 
         // ── Controls ──────────────────────────────────────────────────────────────────
         Text("Amplitude: ${(amplitude * 100).toInt()}%", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
