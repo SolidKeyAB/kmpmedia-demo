@@ -45,6 +45,7 @@ enum class DemoScreen(val title: String, val emoji: String, val blurb: String) {
     CropShape("Crop a Photo into a Shape", "✂️", "Pick a photo and crop it into a circle, triangle or diamond — the image twin of 'Video in any shape'. It's one Compose GPU clip drawn once, so there's zero performance cost."),
     AutoCutout("Auto-cutout (remove background)", "🪄", "Drop a photo, get the subject clipped out. The library turns a segmentation mask into a live polygon lasso (contour trace + simplify, pure commonMain) — with a zero-dependency chroma/luma-key segmenter for plain backgrounds, and a pluggable OGSegmenter for ML Kit / Vision / cloud models on cluttered scenes. No ML dependency in the library."),
     Gif("Animated GIF", "🎞️", "Point one OGImageView at a .gif and it plays — looping frames on Android (AnimatedImageDrawable) and iOS (Skia Codec), the same code. The shape clip that crops a photo works on the moving image too."),
+    Camera("Live camera in any shape", "📷", "Point the live camera feed through any shape — a circle, triangle or diamond window on the world (the AR-sticker primitive). OGCameraPreview wires the platform camera with zero third-party dependency: Camera2 on Android, AVFoundation on iOS. Toggle the shape and front/back camera."),
     Parallax("Depth parallax", "🏔️", "A layered scene where each element sits at a different depth — drag to move the viewpoint and the layers slide by different amounts (far pinned, near moving most). Modifier.ogParallax on one GPU graphicsLayer, built on the same depth axis as Modifier.ogDepth. 60fps, same code on Android & iOS."),
     Joint("Jointed Shapes (a rig)", "🦾", "Connect shape-clipped photos at a single pixel with a movable angular limit. Drag a two-link arm — each joint stops at its limit — then hit 'Let it swing' to watch a clamped pendulum. The building block for articulated rigs and motion dynamics."),
     BodyRig("Add Your Head to a Body", "🧍", "The arms, legs and torso are already rigged. Pick a photo, clip it to a shape and it becomes the head — pinned at the neck joint you set — then tap Wave / Walk / Jumping jacks / Dance and watch the whole body move, your head riding along."),
@@ -76,6 +77,7 @@ fun DemoApp() {
                         DemoScreen.CropShape -> CropShapeScreen()
                         DemoScreen.AutoCutout -> AutoCutoutScreen()
                         DemoScreen.Gif -> GifScreen()
+                        DemoScreen.Camera -> CameraScreen()
                         DemoScreen.Parallax -> ParallaxScreen()
                         DemoScreen.Joint -> JointScreen()
                         DemoScreen.BodyRig -> BodyRigScreen()
