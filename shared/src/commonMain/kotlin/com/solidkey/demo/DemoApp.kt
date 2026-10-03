@@ -43,6 +43,7 @@ enum class DemoScreen(val title: String, val emoji: String, val blurb: String) {
     Interactive("Interactive shapes", "🤹", "Grab a shape-clipped photo and drag it, pinch to zoom, twist to rotate — then fling it and watch it spring back. Modifier.ogInteractive adds the transform + momentum + spring; OGHitArea means only touches inside the actual silhouette grab it, not its bounding box. Zero-dep, 60fps, same code on Android & iOS."),
     Scrabble("Scrabble tiles (drag & drop)", "🔠", "A drag-and-drop tile game built only from shipped primitives: drag lettered tiles from the rack onto a real 15×15 board, they snap into the grid and click as they land. The drag is one Modifier.ogInteractive; the click is an OGAudioSprite slice. Spell K·M·P·M·E·D·I·A across the ★. The rules (grid, snap, occupancy) are ~30 lines of plain app code — showing where the library ends and your game begins."),
     CropShape("Crop a Photo into a Shape", "✂️", "Pick a photo and crop it into a circle, triangle or diamond — the image twin of 'Video in any shape'. It's one Compose GPU clip drawn once, so there's zero performance cost."),
+    AutoCutout("Auto-cutout (remove background)", "🪄", "Drop a photo, get the subject clipped out. The library turns a segmentation mask into a live polygon lasso (contour trace + simplify, pure commonMain) — with a zero-dependency chroma/luma-key segmenter for plain backgrounds, and a pluggable OGSegmenter for ML Kit / Vision / cloud models on cluttered scenes. No ML dependency in the library."),
     Gif("Animated GIF", "🎞️", "Point one OGImageView at a .gif and it plays — looping frames on Android (AnimatedImageDrawable) and iOS (Skia Codec), the same code. The shape clip that crops a photo works on the moving image too."),
     Joint("Jointed Shapes (a rig)", "🦾", "Connect shape-clipped photos at a single pixel with a movable angular limit. Drag a two-link arm — each joint stops at its limit — then hit 'Let it swing' to watch a clamped pendulum. The building block for articulated rigs and motion dynamics."),
     BodyRig("Add Your Head to a Body", "🧍", "The arms, legs and torso are already rigged. Pick a photo, clip it to a shape and it becomes the head — pinned at the neck joint you set — then tap Wave / Walk / Jumping jacks / Dance and watch the whole body move, your head riding along."),
@@ -72,6 +73,7 @@ fun DemoApp() {
                         DemoScreen.Interactive -> InteractiveScreen()
                         DemoScreen.Scrabble -> ScrabbleScreen()
                         DemoScreen.CropShape -> CropShapeScreen()
+                        DemoScreen.AutoCutout -> AutoCutoutScreen()
                         DemoScreen.Gif -> GifScreen()
                         DemoScreen.Joint -> JointScreen()
                         DemoScreen.BodyRig -> BodyRigScreen()
