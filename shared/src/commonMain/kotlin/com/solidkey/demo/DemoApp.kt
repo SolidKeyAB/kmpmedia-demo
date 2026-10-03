@@ -41,6 +41,7 @@ enum class DemoScreen(val title: String, val emoji: String, val blurb: String) {
     SoftMask("Soft & multi-region masks", "🪶", "Beyond a single hard-edged shape: feather a photo's edge into a vignette (softEdge), fade it along a gradient (maskBrush), or clip it to more than one region at once — two portholes, a bitten diamond — with OGMultiRegionShape. One offscreen DstIn pass / a path op, zero per-frame cost, same code on Android & iOS."),
     Compositor("Compositor + export", "📽️", "The flagship: compose several layers on ONE timeline, animate them with keyframed x/y/scale/rotation/opacity, preview live at 60fps — then export the whole scene to a single shareable animated GIF, all on device. OGComposition + OGCompositionView + exportGif(), pure commonMain, zero deps. No other KMP library does compose-and-export."),
     Interactive("Interactive shapes", "🤹", "Grab a shape-clipped photo and drag it, pinch to zoom, twist to rotate — then fling it and watch it spring back. Modifier.ogInteractive adds the transform + momentum + spring; OGHitArea means only touches inside the actual silhouette grab it, not its bounding box. Zero-dep, 60fps, same code on Android & iOS."),
+    Scrabble("Scrabble tiles (drag & drop)", "🔠", "A drag-and-drop tile game built only from shipped primitives: drag lettered tiles from the rack onto a real 15×15 board, they snap into the grid and click as they land. The drag is one Modifier.ogInteractive; the click is an OGAudioSprite slice. Spell K·M·P·M·E·D·I·A across the ★. The rules (grid, snap, occupancy) are ~30 lines of plain app code — showing where the library ends and your game begins."),
     CropShape("Crop a Photo into a Shape", "✂️", "Pick a photo and crop it into a circle, triangle or diamond — the image twin of 'Video in any shape'. It's one Compose GPU clip drawn once, so there's zero performance cost."),
     Gif("Animated GIF", "🎞️", "Point one OGImageView at a .gif and it plays — looping frames on Android (AnimatedImageDrawable) and iOS (Skia Codec), the same code. The shape clip that crops a photo works on the moving image too."),
     Joint("Jointed Shapes (a rig)", "🦾", "Connect shape-clipped photos at a single pixel with a movable angular limit. Drag a two-link arm — each joint stops at its limit — then hit 'Let it swing' to watch a clamped pendulum. The building block for articulated rigs and motion dynamics."),
@@ -68,6 +69,7 @@ fun DemoApp() {
                         DemoScreen.SoftMask -> SoftMaskScreen()
                         DemoScreen.Compositor -> CompositorScreen()
                         DemoScreen.Interactive -> InteractiveScreen()
+                        DemoScreen.Scrabble -> ScrabbleScreen()
                         DemoScreen.CropShape -> CropShapeScreen()
                         DemoScreen.Gif -> GifScreen()
                         DemoScreen.Joint -> JointScreen()
