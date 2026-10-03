@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -113,6 +114,11 @@ fun GraphicButtonScreen() {
         ) {
             // 1) An SVG graphic → a button (Scale press), SHAPE-AWARE on the star outline.
             ButtonCell("SVG · Scale") {
+                // OGSVGView's width/height are its drawing extent in PIXELS (it scales the viewBox to
+                // fill them, then the Canvas is clamped to the parent box). Passing the box's px size
+                // makes the star fill the whole 104dp box on ANY density, so the drawn glyph lines up
+                // with the STAR hit area 1:1 (at dp-as-px it rendered tiny in the top-left and taps missed).
+                val boxPx = with(LocalDensity.current) { 104.dp.toPx() }
                 Box(
                     modifier = Modifier
                         .size(104.dp)
@@ -122,8 +128,7 @@ fun GraphicButtonScreen() {
                         ) { register("Star (SVG)") },
                     contentAlignment = Alignment.Center,
                 ) {
-                    // Fill the whole box so the glyph matches the STAR hit area 1:1.
-                    OGSVGView(source = OGSvgResourceFileType("star"), width = 104f, height = 104f, onError = {})
+                    OGSVGView(source = OGSvgResourceFileType("star"), width = boxPx, height = boxPx, onError = {})
                 }
             }
 
