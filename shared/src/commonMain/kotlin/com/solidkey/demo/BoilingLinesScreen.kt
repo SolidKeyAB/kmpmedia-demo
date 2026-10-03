@@ -18,6 +18,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -43,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import com.solidkey.painpoints.shape.OGPoint
 import com.solidkey.painpoints.shape.OGPolygonShape
 import com.solidkey.painpoints.style.OGBoil
+import com.solidkey.painpoints.style.OGStyles
 import com.solidkey.painpoints.style.boiled
 import com.solidkey.painpoints.style.pixelateFill
 import kotlin.math.PI
@@ -172,6 +174,69 @@ fun BoilingLinesScreen() {
         androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(selected = smooth, onClick = { smooth = true }, label = { Text("Smooth wobble") })
             FilterChip(selected = !smooth, onClick = { smooth = false }, label = { Text("Classic stutter") })
+        }
+
+        // ── Data-defined style: decode a JSON "pack" and apply it live (designer / AI authored) ──
+        Text("Style from JSON · OGStyles.decode(pack).apply(outline, t)", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        Text(
+            "A style is just data — a pipeline of {op, params}. Pick or edit the pack below and the " +
+                "library decodes it to a live OGStyle, applied to the same circle every frame. This is how " +
+                "a designer (or an LLM) ships a shareable '.style' with no code and no rebuild.",
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+        )
+        val stylePresets = remember {
+            listOf(
+                "Boil" to """{"name":"boil","ops":[{"op":"boil","amplitude":0.03,"boilFps":9}]}""",
+                "Stepped" to """{"name":"stepped","ops":[{"op":"boil","amplitude":0.04,"boilFps":7},{"op":"quantize","grid":22}]}""",
+                "Pixel sprite" to """{"name":"pixel","ops":[{"op":"boil","amplitude":0.03,"boilFps":10},{"op":"pixelate","resolution":20}]}""",
+            )
+        }
+        var styleJson by remember { mutableStateOf(stylePresets[2].second) }
+        androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            stylePresets.forEach { (label, json) ->
+                FilterChip(selected = styleJson == json, onClick = { styleJson = json }, label = { Text(label) })
+            }
+        }
+        OutlinedTextField(
+            value = styleJson,
+            onValueChange = { styleJson = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("style pack (JSON)") },
+            textStyle = MaterialTheme.typography.bodySmall,
+        )
+        // Decode once per edit (not per frame); apply the compiled style to the outline each frame.
+        val liveStyle = remember(styleJson) { OGStyles.decodeOrNull(styleJson) }
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .background(Color(0xFF14121A)),
+        ) {
+            val w = size.width
+            val h = size.height
+            val frame = liveStyle?.apply(blob, timeMs) ?: return@Canvas
+            if (frame.isPixelated) {
+                val ps = frame.pixelSize
+                for (c in frame.pixels) {
+                    drawRect(
+                        color = Color(0xFF00E0A8),
+                        topLeft = Offset((c.x - ps / 2f) * w, (c.y - ps / 2f) * h),
+                        size = Size(w * ps * 0.9f, h * ps * 0.9f),
+                    )
+                }
+            } else {
+                val path = closedPath(frame.outline, w, h)
+                drawPath(path, color = Color(0xFF7B2FF7).copy(alpha = 0.85f))
+                drawPath(
+                    path,
+                    color = Color(0xFFFF5DA2),
+                    style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
+                )
+            }
+        }
+        if (liveStyle == null) {
+            Text("⚠️ invalid style JSON — fix it to see the preview", color = Color(0xFFFF8A80), fontSize = 12.sp)
         }
 
         Spacer(Modifier.height(4.dp))
