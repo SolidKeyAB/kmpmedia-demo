@@ -43,6 +43,7 @@ enum class DemoScreen(val title: String, val emoji: String, val blurb: String) {
     Compositor("Compositor + export", "📽️", "The flagship: compose several layers on ONE timeline, animate them with keyframed x/y/scale/rotation/opacity, preview live at 60fps — then export the whole scene to a single shareable animated GIF, all on device. OGComposition + OGCompositionView + exportGif(), pure commonMain, zero deps. No other KMP library does compose-and-export."),
     Interactive("Interactive shapes", "🤹", "Grab a shape-clipped photo and drag it, pinch to zoom, twist to rotate — then fling it and watch it spring back. Modifier.ogInteractive adds the transform + momentum + spring; OGHitArea means only touches inside the actual silhouette grab it, not its bounding box. Zero-dep, 60fps, same code on Android & iOS."),
     Scrabble("Scrabble tiles (drag & drop)", "🔠", "A drag-and-drop tile game built only from shipped primitives: drag lettered tiles from the rack onto a real 15×15 board, they snap into the grid and click as they land. The drag is one Modifier.ogInteractive; the click is an OGAudioSprite slice. Spell K·M·P·M·E·D·I·A across the ★. The rules (grid, snap, occupancy) are ~30 lines of plain app code — showing where the library ends and your game begins."),
+    GraphicButton("Any graphic → a button", "🔘", "KMPMedia ships no button component — but one Modifier.ogButton turns any graphic (an SVG, a lasso-cut photo, a plain shape) into a real pressable button: a shape-aware tap (only inside the silhouette, via OGHitArea), a pressed-state visual (Scale / Dim / a pop-art hard-shadow 'Brutalist' push-in), and onClick. The tap twin of ogInteractive's drag — zero-dep, same code on Android & iOS."),
     CropShape("Crop a Photo into a Shape", "✂️", "Pick a photo and crop it into a circle, triangle or diamond — the image twin of 'Video in any shape'. It's one Compose GPU clip drawn once, so there's zero performance cost."),
     AutoCutout("Auto-cutout (remove background)", "🪄", "Drop a photo, get the subject clipped out. The library turns a segmentation mask into a live polygon lasso (contour trace + simplify, pure commonMain) — with a zero-dependency chroma/luma-key segmenter for plain backgrounds, and a pluggable OGSegmenter for ML Kit / Vision / cloud models on cluttered scenes. No ML dependency in the library."),
     Gif("Animated GIF", "🎞️", "Point one OGImageView at a .gif and it plays — looping frames on Android (AnimatedImageDrawable) and iOS (Skia Codec), the same code. The shape clip that crops a photo works on the moving image too."),
@@ -76,6 +77,7 @@ fun DemoApp() {
                         DemoScreen.Compositor -> CompositorScreen()
                         DemoScreen.Interactive -> InteractiveScreen()
                         DemoScreen.Scrabble -> ScrabbleScreen()
+                        DemoScreen.GraphicButton -> GraphicButtonScreen()
                         DemoScreen.CropShape -> CropShapeScreen()
                         DemoScreen.AutoCutout -> AutoCutoutScreen()
                         DemoScreen.Gif -> GifScreen()
