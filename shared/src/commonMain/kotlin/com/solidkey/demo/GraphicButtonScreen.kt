@@ -55,6 +55,18 @@ private val DIAMOND: OGPolygonShape = OGPolygonShape.of(
 )
 
 /**
+ * The 5-pointed star outline (normalized 0..1), taken straight from `star.svg`'s `<polygon>` points
+ * (a 0..100 viewBox ÷ 100). The SVG is drawn to fill the whole 104dp box, so these normalized points
+ * line up exactly with what's on screen — giving the star button a shape-aware hit area that matches
+ * the glyph (tap a point → fires; tap the gaps between the arms → falls through).
+ */
+private val STAR: OGPolygonShape = OGPolygonShape.of(
+    0.50f to 0.08f, 0.5999f to 0.3625f, 0.899f to 0.37f, 0.6617f to 0.5525f,
+    0.747f to 0.8398f, 0.50f to 0.67f, 0.253f to 0.8398f, 0.3383f to 0.5525f,
+    0.1006f to 0.3702f, 0.4001f to 0.3625f,
+)
+
+/**
  * 🔘 **Any graphic → a button** — the tap twin of the Interactive (drag) screen. `Modifier.ogButton`
  * turns any graphic (an SVG, a lasso-cut photo, a plain shape) into a real pressable button: a
  * shape-aware tap (only the actual silhouette, via `OGHitArea`) + a pressed-state visual + `onClick`,
@@ -99,19 +111,25 @@ fun GraphicButtonScreen() {
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.Top,
         ) {
-            // 1) An SVG graphic → a button (Scale press, whole box).
+            // 1) An SVG graphic → a button (Scale press), SHAPE-AWARE on the star outline.
             ButtonCell("SVG · Scale") {
                 Box(
                     modifier = Modifier
                         .size(104.dp)
-                        .ogButton(pressEffect = OGPressEffect.Scale()) { register("Star (SVG)") },
+                        .ogButton(
+                            hitArea = OGHitArea.polygon(STAR),
+                            pressEffect = OGPressEffect.Scale(),
+                        ) { register("Star (SVG)") },
                     contentAlignment = Alignment.Center,
                 ) {
-                    OGSVGView(source = OGSvgResourceFileType("star"), width = 96f, height = 96f, onError = {})
+                    // Fill the whole box so the glyph matches the STAR hit area 1:1.
+                    OGSVGView(source = OGSvgResourceFileType("star"), width = 104f, height = 104f, onError = {})
                 }
             }
 
             // 2) A lasso-cut photo → a button (Brutalist hard-shadow press, SHAPE-AWARE: only the head).
+            //    The image fills the card so the tappable head silhouette is the whole visible target
+            //    (only the cream corners outside the lasso fall through).
             ButtonCell("Lasso photo · Brutalist") {
                 Box(
                     modifier = Modifier
@@ -123,7 +141,7 @@ fun GraphicButtonScreen() {
                         source = OGImageResourceFileType("avatar_ozge", OGImageFormat.JPEG),
                         clipShape = HEAD_LASSO,
                         modifier = Modifier
-                            .size(104.dp)
+                            .size(120.dp)
                             .ogButton(
                                 hitArea = OGHitArea.polygon(HEAD_LASSO),
                                 pressEffect = OGPressEffect.Brutalist(offset = 6.dp, shadowColor = Color(0xFF7B2FF7)),
@@ -154,9 +172,10 @@ fun GraphicButtonScreen() {
         }
 
         Text(
-            "Try it: the lasso photo only responds inside the head outline — tap a corner and nothing " +
-                "happens (the touch falls through), because its hitArea is the same lasso that clips it. " +
-                "Long-press the head for a second action. The diamond is shape-aware too.",
+            "Try it: every graphic here is shape-aware — tap ON the shape and it fires, tap the gaps " +
+                "around it and nothing happens (the touch falls through). The star responds only on its " +
+                "arms, the photo only inside the head outline (the same lasso that clips it), the diamond " +
+                "only on the diamond. Long-press the head for a second action.",
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
         )
