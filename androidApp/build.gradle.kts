@@ -11,8 +11,8 @@ android {
         applicationId = "com.solidkey.kmpmediademo"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.compileSdk.get().toInt()
-        versionCode = 46
-        versionName = "0.1.46"
+        versionCode = 48
+        versionName = "0.1.48"
     }
     buildFeatures {
         compose = true

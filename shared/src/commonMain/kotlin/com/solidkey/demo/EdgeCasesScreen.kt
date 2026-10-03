@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,7 +52,7 @@ fun EdgeCasesScreen() {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
-            "Each row feeds a deliberately bad input to the library. A healthy library reports the failure through onError instead of crashing. (Network cases also fail offline — that still exercises the error path.)",
+            "Each row feeds a deliberately bad input to the library. A healthy library reports the failure through onError instead of crashing. (Network cases also fail offline — that still exercises the error path.) The image rows also dogfood 1.16.0's new slots: a blue spinner placeholder while loading, and a ⚠️ error slot on failure — in place of the old solid-colour fallback box.",
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
         )
@@ -92,9 +93,24 @@ private fun ImageCase(title: String, desc: String, makeSource: () -> OGSourceTyp
     val source = remember { makeSource() }
     var error by remember { mutableStateOf<String?>(null) }
     CaseCard(title, desc, error) {
+        // 🆕 1.16.0 parity slots: a custom placeholder (spinner) while loading, a custom error slot
+        // on failure, and an accessibility contentDescription — instead of the old solid-colour box.
         OGImageView(
             source = source,
             modifier = Modifier.fillMaxSize(),
+            contentDescription = title,
+            placeholder = {
+                Box(
+                    Modifier.fillMaxSize().background(Color(0xFFE3F2FD)),
+                    contentAlignment = Alignment.Center,
+                ) { CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp) }
+            },
+            error = {
+                Box(
+                    Modifier.fillMaxSize().background(Color(0xFFFDECEA)),
+                    contentAlignment = Alignment.Center,
+                ) { Text("⚠️", fontSize = 26.sp) }
+            },
             onError = { error = it },
             onEventTriggered = { _, _ -> }
         )
