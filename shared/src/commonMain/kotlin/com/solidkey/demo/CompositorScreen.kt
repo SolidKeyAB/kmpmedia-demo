@@ -43,6 +43,11 @@ import com.solidkey.painpoints.compositor.OGEasing
 import com.solidkey.painpoints.compositor.OGKeyframe
 import com.solidkey.painpoints.compositor.OGKeyframedFloat
 import com.solidkey.painpoints.compositor.OGLayerContent
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.graphics.ImageBitmap
+import com.solidkey.painpoints.compositor.exportFrames
 import com.solidkey.painpoints.compositor.exportGif
 import com.solidkey.painpoints.compositor.exportMp4
 import com.solidkey.painpoints.image.OGImageView
@@ -179,6 +184,8 @@ fun CompositorScreen() {
     var mp4Info by remember { mutableStateOf<String?>(null) }
     var mp4File by remember { mutableStateOf<String?>(null) }
     var mp4Nonce by remember { mutableStateOf(0) }
+
+    var frames by remember { mutableStateOf<List<ImageBitmap>>(emptyList()) }
 
     Column(
         modifier = Modifier
@@ -380,13 +387,54 @@ fun CompositorScreen() {
             }
         }
 
+        // ── Export frame sequence (the individual frames) ───────────────────────────────
+        Button(
+            onClick = {
+                if (exporting) return@Button
+                scope.launch {
+                    exporting = true
+                    // exportFrames() renders one bitmap per frame — run it off the main thread.
+                    frames = withContext(Dispatchers.Default) { composition.exportFrames() }
+                    exporting = false
+                }
+            },
+            enabled = !exporting,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(if (exporting) "Exporting…" else "Export frame sequence (${composition.frameCount} frames)")
+        }
+        if (frames.isNotEmpty()) {
+            Text(
+                "${frames.size} rendered frames — the filmstrip (scroll →):",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                frames.forEachIndexed { i, bmp ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Image(
+                            bitmap = bmp,
+                            contentDescription = "frame $i",
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.size(64.dp).background(Color(0xFF05060F)),
+                        )
+                        Text("$i", fontSize = 9.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+                    }
+                }
+            }
+        }
+
         Spacer(Modifier.height(4.dp))
         Text(
             "Under the hood: com.solidkey.painpoints.compositor — OGComposition (canvas + durationMs/fps " +
                 "timeline + back-to-front layers), OGCompositionLayer (each track an OGKeyframedFloat, any " +
                 "Shape clip, a [startMs,endMs] window), OGCompositionView (frame-clock preview / scrubber), " +
-                "exportGif() → the pure-Kotlin OGGifEncoder, and exportMp4() → the OS H.264 encoder " +
-                "(MediaCodec / AVAssetWriter). Zero new dependencies, identical on Android & iOS. " +
+                "exportGif() → the pure-Kotlin OGGifEncoder, exportMp4() → the OS H.264 encoder " +
+                "(MediaCodec / AVAssetWriter), and exportFrames() → the raw frame sequence. Zero new " +
+                "dependencies, identical on Android & iOS. " +
                 "See docs/COMPOSITOR.md.",
             fontSize = 11.sp,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
