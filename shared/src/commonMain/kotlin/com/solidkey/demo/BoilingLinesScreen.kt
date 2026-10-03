@@ -159,12 +159,13 @@ fun BoilingLinesScreen() {
                 drawRect(
                     color = Color(0xFF00E0A8),
                     topLeft = Offset((c.x - 0.5f / res) * w, (c.y - 0.5f / res) * h),
-                    size = Size(w / res * 0.9f, h / res * 0.9f),
+                    // Full cell (+1px overlap) so the pixels tile solid — no grid gaps.
+                    size = Size(w / res + 1f, h / res + 1f),
                 )
             }
         }
-        Text("Pixel resolution: ${pixelRes.toInt()}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-        Slider(value = pixelRes, onValueChange = { pixelRes = it }, valueRange = 6f..36f)
+        Text("Pixel resolution: ${pixelRes.toInt()} (higher = smaller pixels)", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Slider(value = pixelRes, onValueChange = { pixelRes = it }, valueRange = 6f..80f)
 
         // ── Controls ──────────────────────────────────────────────────────────────────
         Text("Amplitude: ${(amplitude * 100).toInt()}%", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
@@ -222,7 +223,8 @@ fun BoilingLinesScreen() {
                     drawRect(
                         color = Color(0xFF00E0A8),
                         topLeft = Offset((c.x - ps / 2f) * w, (c.y - ps / 2f) * h),
-                        size = Size(w * ps * 0.9f, h * ps * 0.9f),
+                        // Full cell (+1px overlap) so the pixels tile solid — no grid gaps.
+                        size = Size(w * ps + 1f, h * ps + 1f),
                     )
                 }
             } else {
