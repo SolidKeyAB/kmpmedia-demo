@@ -48,6 +48,7 @@ enum class DemoScreen(val title: String, val emoji: String, val blurb: String) {
     BodyRig("Add Your Head to a Body", "🧍", "The arms, legs and torso are already rigged. Pick a photo, clip it to a shape and it becomes the head — pinned at the neck joint you set — then tap Wave / Walk / Jumping jacks / Dance and watch the whole body move, your head riding along."),
     Playground("Feature Playground", "🎛️", "Load images, SVGs, video, audio & layers from any URL/resource — tune every config live."),
     Game("UFO Dodge (mini-game)", "🛸", "Every sprite is a static SVG animated by KMPMedia: dodge tumbling meteorites & hostile ships, grab stars to repair — and watch your UFO shake harder as damage rises. Tap ⚙️ Customize to crop your own photos into shapes and drop them into the field as game objects."),
+    Exif("EXIF auto-rotate", "🔄", "Photos tagged with a non-default EXIF orientation (shot in portrait / upside down) decode UPRIGHT automatically — the decoder reads tag 0x0112 and rotates on both Android & iOS. The standard 8-orientation test set, rendered right-way-up."),
     EdgeCases("Edge Cases", "🧪", "Deliberately broken inputs — bad URLs, huge images, malformed SVG, unsupported formats — to verify onError fires cleanly."),
     Performance("Performance", "⚡", "Load-timing, many-layer stress and rapid transform benchmarks with live numbers.")
 }
@@ -76,6 +77,7 @@ fun DemoApp() {
                         DemoScreen.BodyRig -> BodyRigScreen()
                         DemoScreen.Playground -> TestMainUI()
                         DemoScreen.Game -> UfoGameScreen()
+                        DemoScreen.Exif -> ExifScreen()
                         DemoScreen.EdgeCases -> EdgeCasesScreen()
                         DemoScreen.Performance -> PerformanceScreen()
                     }
