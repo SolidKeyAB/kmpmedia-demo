@@ -7,7 +7,9 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -36,7 +38,7 @@ data class CameraPermission(val granted: Boolean, val request: () -> Unit)
 expect fun rememberCameraPermission(): CameraPermission
 
 /**
- * Dogfoods 1.22.0: a live camera feed clipped to any shape (OGCameraPreview) — the AR-sticker
+ * Dogfoods 1.22.1: a live camera feed clipped to any shape (OGCameraPreview) — the AR-sticker
  * primitive. Toggle the shape (circle / triangle / diamond) and the camera (back / front). Zero
  * third-party dependency: Camera2 on Android, AVFoundation on iOS.
  */
@@ -54,7 +56,7 @@ fun CameraScreen() {
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(
@@ -85,16 +87,17 @@ fun CameraScreen() {
             )
         }
 
+        Text("Camera", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+        Row3 {
+            FilterChip(selected = facing == OGCameraFacing.BACK, onClick = { facing = OGCameraFacing.BACK }, label = { Text("Back") })
+            FilterChip(selected = facing == OGCameraFacing.FRONT, onClick = { facing = OGCameraFacing.FRONT }, label = { Text("Front") })
+        }
+
         Text("Shape", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
         Row3 {
             for (name in listOf("Circle", "Triangle", "Diamond")) {
                 FilterChip(selected = shapeName == name, onClick = { shapeName = name }, label = { Text(name) })
             }
-        }
-        Text("Camera", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-        Row3 {
-            FilterChip(selected = facing == OGCameraFacing.BACK, onClick = { facing = OGCameraFacing.BACK }, label = { Text("Back") })
-            FilterChip(selected = facing == OGCameraFacing.FRONT, onClick = { facing = OGCameraFacing.FRONT }, label = { Text("Front") })
         }
         error?.let { Text("⚠️ $it", color = Color(0xFFC62828), fontSize = 12.sp) }
     }
