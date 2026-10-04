@@ -1,5 +1,6 @@
 package com.solidkey.demo
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -53,14 +55,26 @@ fun RuntimeSvgScreen() {
     seedSvgFile("runtime_gauge.svg", GAUGE_SVG) { gaugePath = it }
 
     var value by remember { mutableStateOf(30f) } // 0..100
+    // Toggle: let the zone colour GLIDE between green/amber/red instead of snapping at the
+    // threshold. Default on so the screen shows the smooth behaviour; flip it off to compare.
+    var smoothColour by remember { mutableStateOf(true) }
 
     // Map the value to the needle angle (−90° left … +90° right) and a zone colour.
     val angle = -90f + (value / 100f) * 180f
-    val zone = when {
+    val targetZone = when {
         value < 50f -> Color(0xFF22C55E) // green
         value < 80f -> Color(0xFFF59E0B) // amber
         else -> Color(0xFFEF4444)        // red
     }
+    // The paint twin of path-morph: Compose animates the colour and re-emits it each frame into
+    // the SAME overrides map, so OGSVGView cross-fades the arc + dot. No re-parse (only paint
+    // folds in), so it holds 60fps — same cost profile as the needle/morph on this screen.
+    val animatedZone by animateColorAsState(
+        targetValue = targetZone,
+        animationSpec = tween(400),
+        label = "zoneColour",
+    )
+    val zone = if (smoothColour) animatedZone else targetZone
     val overrides = mapOf(
         "needle" to OGSvgNodeOverride(rotation = angle, rotationCx = 100f, rotationCy = 105f),
         "arc" to OGSvgNodeOverride(stroke = zone),
@@ -107,6 +121,20 @@ fun RuntimeSvgScreen() {
         )
         Slider(value = value, onValueChange = { value = it }, valueRange = 0f..100f)
 
+        // Toggle the smooth colour transition on/off to SEE the difference (glide vs snap).
+        androidx.compose.foundation.layout.Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Switch(checked = smoothColour, onCheckedChange = { smoothColour = it })
+            Text(
+                "Smooth colour transition" + if (smoothColour) " — on (glides)" else " — off (snaps)",
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+        }
+
         // Quick presets — also handy for driving the screen from automation.
         androidx.compose.foundation.layout.Row(
             Modifier.fillMaxWidth(),
@@ -118,7 +146,7 @@ fun RuntimeSvgScreen() {
         }
         Spacer(Modifier.height(4.dp))
         Text(
-            "overrides = mapOf(\n  \"needle\" to OGSvgNodeOverride(rotation = angle, rotationCx = 100f, rotationCy = 105f),\n  \"arc\" to OGSvgNodeOverride(stroke = zoneColor),\n  \"status\" to OGSvgNodeOverride(fill = zoneColor),\n)",
+            "val zone by animateColorAsState(target, tween(400))   // on = glide; use target to snap\noverrides = mapOf(\n  \"needle\" to OGSvgNodeOverride(rotation = angle, rotationCx = 100f, rotationCy = 105f),\n  \"arc\" to OGSvgNodeOverride(stroke = zone),\n  \"status\" to OGSvgNodeOverride(fill = zone),\n)",
             fontSize = 11.sp,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
         )
