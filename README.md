@@ -1,3 +1,6 @@
+<!-- ⛔ poc/agent-live-game branch -->
+> ⛔ **You are on the `poc/agent-live-game` branch, a nexum-backed PoC. Do NOT merge it into `main`.** See [DO_NOT_MERGE.md](DO_NOT_MERGE.md). The public demo on `main` stays nexum-free.
+
 # KMPMedia Demo
 
 A cross-platform (Android + iOS) playground app that exercises the
