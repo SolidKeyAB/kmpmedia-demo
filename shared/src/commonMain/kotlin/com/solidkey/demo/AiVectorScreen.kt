@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
@@ -30,6 +31,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.solidkey.painpoints.ai.OGAiVector
+import com.solidkey.painpoints.ai.OGImageInfo
+import com.solidkey.painpoints.ai.OGVectorTarget
 import com.solidkey.painpoints.image.OGImageView
 import com.solidkey.painpoints.image.loading.OGImageFormat
 import com.solidkey.painpoints.image.loading.OGImageResourceFileType
@@ -94,6 +97,49 @@ private val PATCH_EXAMPLES = listOf(
     ),
 )
 
+// "Replies" a VISION model would return when asked to trace the photo. Same normalized 0..1 JSON as
+// the text→vector contract — because image→vector is the same codec with an image instead of a
+// sentence. The .instruction here is the hint handed to imageToVectorPrompt.
+private val IMAGE_SILHOUETTE_EXAMPLES = listOf(
+    VectorExample(
+        "person", "trace the person's silhouette",
+        """
+        Here's the silhouette I traced from the photo:
+        ```json
+        {"points":[{"x":0.40,"y":0.08},{"x":0.50,"y":0.05},{"x":0.60,"y":0.08},{"x":0.64,"y":0.22},
+        {"x":0.58,"y":0.33},{"x":0.72,"y":0.42},{"x":0.80,"y":0.62},{"x":0.82,"y":0.95},
+        {"x":0.18,"y":0.95},{"x":0.20,"y":0.62},{"x":0.28,"y":0.42},{"x":0.42,"y":0.33},{"x":0.36,"y":0.22}]}
+        ```
+        """.trimIndent()
+    ),
+    VectorExample(
+        "head only", "just the head",
+        """{"points":[{"x":0.38,"y":0.12},{"x":0.5,"y":0.08},{"x":0.62,"y":0.12},{"x":0.67,"y":0.26},{"x":0.62,"y":0.40},{"x":0.5,"y":0.46},{"x":0.38,"y":0.40},{"x":0.33,"y":0.26}]}"""
+    ),
+)
+
+private val IMAGE_SCENE_EXAMPLES = listOf(
+    VectorExample(
+        "head+torso+arms", "cut out the head, torso and each arm",
+        """{"shapes":[
+        {"label":"head","fill":"#E8B98A","points":[{"x":0.38,"y":0.10},{"x":0.5,"y":0.06},{"x":0.62,"y":0.10},{"x":0.66,"y":0.26},{"x":0.60,"y":0.40},{"x":0.40,"y":0.40},{"x":0.34,"y":0.26}]},
+        {"label":"torso","fill":"#3B6EA5","points":[{"x":0.30,"y":0.42},{"x":0.70,"y":0.42},{"x":0.74,"y":0.95},{"x":0.26,"y":0.95}]},
+        {"label":"left arm","fill":"#3B6EA5","points":[{"x":0.12,"y":0.48},{"x":0.30,"y":0.46},{"x":0.30,"y":0.62},{"x":0.14,"y":0.78}]},
+        {"label":"right arm","fill":"#3B6EA5","points":[{"x":0.70,"y":0.46},{"x":0.88,"y":0.48},{"x":0.86,"y":0.78},{"x":0.70,"y":0.62}]}
+        ]}"""
+    ),
+    VectorExample(
+        "head + torso", "head and torso only",
+        """
+        Sure — two regions traced from the image:
+        ```json
+        {"shapes":[{"label":"head","points":[{"x":0.38,"y":0.10},{"x":0.62,"y":0.10},{"x":0.60,"y":0.40},{"x":0.40,"y":0.40}]},
+        {"label":"torso","points":[{"x":0.30,"y":0.42},{"x":0.70,"y":0.42},{"x":0.74,"y":0.95},{"x":0.26,"y":0.95}]}]}
+        ```
+        """.trimIndent()
+    ),
+)
+
 // A gauge with three addressable nodes (id="arc" / "needle" / "status"), same as the Runtime-SVG
 // screen — so a model patch keyed by those ids drives it live.
 private val AI_GAUGE_SVG: String = """
@@ -120,7 +166,7 @@ fun AiVectorScreen() {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text(
-            "AI vector — describe → shape / patch",
+            "AI vector — describe (or show a photo) → shape / patch",
             fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary
         )
         Text(
@@ -182,6 +228,76 @@ fun AiVectorScreen() {
                         overrides = overrides,                   // ← the model's patch, live
                         onError = { },
                     )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        // ── image → vector (new in 1.25.0) ────────────────────────────────────────
+        SectionHeader("3 · image → vector  (new in 1.25.0)")
+        Text(
+            "Same codec, but the input is a PHOTO, not a sentence. You attach the image with " +
+                "ImageBitmap.toBase64Png(), OGAiVector.imageToVectorPrompt(...) builds the ask, and a " +
+                "vision model replies with the same normalized 0..1 JSON — decoded by decodePolygon " +
+                "(one silhouette) or decodeScene (several labelled regions). Still no network in the library.",
+            fontSize = 13.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
+        )
+
+        SectionHeader("3a · one silhouette")
+        VectorPlayground(
+            examples = IMAGE_SILHOUETTE_EXAMPLES,
+            showPrompt = showPrompt,
+            promptFor = { OGAiVector.imageToVectorPrompt(hint = it, target = OGVectorTarget.POLYGON) },
+        ) { json ->
+            val shape = OGAiVector.decodePolygonOrNull(json)
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                if (shape != null) {
+                    OGImageView(
+                        source = OGImageResourceFileType("sample_portrait", OGImageFormat.JPEG),
+                        clipShape = shape,                       // ← the vision model's silhouette, live
+                        contentScale = ContentScale.Crop,
+                        alignment = BiasAlignment(0f, 0f),
+                        modifier = Modifier.size(240.dp),
+                        onError = { },
+                        onEventTriggered = { _, _ -> },
+                    )
+                } else {
+                    ParseError()
+                }
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        SectionHeader("3b · several regions (a multi-part cut-out)")
+        VectorPlayground(
+            examples = IMAGE_SCENE_EXAMPLES,
+            showPrompt = showPrompt,
+            promptFor = { OGAiVector.imageToVectorPrompt(hint = it, target = OGVectorTarget.SCENE, maxShapes = 4) },
+        ) { json ->
+            val scene = OGAiVector.decodeSceneOrNull(json)
+            if (scene == null || scene.shapes.isEmpty()) {
+                ParseError()
+            } else {
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    scene.shapes.forEach { region ->
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            OGImageView(
+                                source = OGImageResourceFileType("sample_portrait", OGImageFormat.JPEG),
+                                clipShape = region.toShape(),    // ← one live clip per region
+                                contentScale = ContentScale.Crop,
+                                alignment = BiasAlignment(0f, 0f),
+                                modifier = Modifier.size(104.dp),
+                                onError = { },
+                                onEventTriggered = { _, _ -> },
+                            )
+                            Text(region.label ?: "region", fontSize = 11.sp)
+                        }
+                    }
                 }
             }
         }
