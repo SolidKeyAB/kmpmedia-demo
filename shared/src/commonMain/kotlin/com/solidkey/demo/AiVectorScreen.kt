@@ -108,15 +108,15 @@ private val IMAGE_SILHOUETTE_EXAMPLES = listOf(
         """
         Here's the silhouette I traced from the photo:
         ```json
-        {"points":[{"x":0.40,"y":0.08},{"x":0.50,"y":0.05},{"x":0.60,"y":0.08},{"x":0.64,"y":0.22},
-        {"x":0.58,"y":0.33},{"x":0.72,"y":0.42},{"x":0.80,"y":0.62},{"x":0.82,"y":0.95},
-        {"x":0.18,"y":0.95},{"x":0.20,"y":0.62},{"x":0.28,"y":0.42},{"x":0.42,"y":0.33},{"x":0.36,"y":0.22}]}
+        {"points":[{"x":0.41,"y":0.12},{"x":0.48,"y":0.18},{"x":0.46,"y":0.30},{"x":0.44,"y":0.34},
+        {"x":0.58,"y":0.41},{"x":0.55,"y":0.60},{"x":0.53,"y":0.74},{"x":0.27,"y":0.74},
+        {"x":0.24,"y":0.60},{"x":0.22,"y":0.41},{"x":0.37,"y":0.34},{"x":0.35,"y":0.30},{"x":0.33,"y":0.18}]}
         ```
         """.trimIndent()
     ),
     VectorExample(
         "head only", "just the head",
-        """{"points":[{"x":0.38,"y":0.12},{"x":0.5,"y":0.08},{"x":0.62,"y":0.12},{"x":0.67,"y":0.26},{"x":0.62,"y":0.40},{"x":0.5,"y":0.46},{"x":0.38,"y":0.40},{"x":0.33,"y":0.26}]}"""
+        """{"points":[{"x":0.41,"y":0.12},{"x":0.47,"y":0.16},{"x":0.485,"y":0.23},{"x":0.46,"y":0.30},{"x":0.41,"y":0.34},{"x":0.36,"y":0.30},{"x":0.335,"y":0.23},{"x":0.35,"y":0.16}]}"""
     ),
 )
 
@@ -124,10 +124,10 @@ private val IMAGE_SCENE_EXAMPLES = listOf(
     VectorExample(
         "head+torso+arms", "cut out the head, torso and each arm",
         """{"shapes":[
-        {"label":"head","fill":"#E8B98A","points":[{"x":0.38,"y":0.10},{"x":0.5,"y":0.06},{"x":0.62,"y":0.10},{"x":0.66,"y":0.26},{"x":0.60,"y":0.40},{"x":0.40,"y":0.40},{"x":0.34,"y":0.26}]},
-        {"label":"torso","fill":"#3B6EA5","points":[{"x":0.30,"y":0.42},{"x":0.70,"y":0.42},{"x":0.74,"y":0.95},{"x":0.26,"y":0.95}]},
-        {"label":"left arm","fill":"#3B6EA5","points":[{"x":0.12,"y":0.48},{"x":0.30,"y":0.46},{"x":0.30,"y":0.62},{"x":0.14,"y":0.78}]},
-        {"label":"right arm","fill":"#3B6EA5","points":[{"x":0.70,"y":0.46},{"x":0.88,"y":0.48},{"x":0.86,"y":0.78},{"x":0.70,"y":0.62}]}
+        {"label":"head","fill":"#E8B98A","points":[{"x":0.41,"y":0.12},{"x":0.47,"y":0.16},{"x":0.485,"y":0.23},{"x":0.46,"y":0.30},{"x":0.41,"y":0.34},{"x":0.36,"y":0.30},{"x":0.335,"y":0.23},{"x":0.35,"y":0.16}]},
+        {"label":"torso","fill":"#3B6EA5","points":[{"x":0.31,"y":0.40},{"x":0.51,"y":0.40},{"x":0.50,"y":0.73},{"x":0.31,"y":0.73}]},
+        {"label":"left arm","fill":"#3B6EA5","points":[{"x":0.22,"y":0.42},{"x":0.31,"y":0.41},{"x":0.31,"y":0.60},{"x":0.27,"y":0.72},{"x":0.22,"y":0.60}]},
+        {"label":"right arm","fill":"#3B6EA5","points":[{"x":0.51,"y":0.41},{"x":0.58,"y":0.42},{"x":0.56,"y":0.62},{"x":0.52,"y":0.72},{"x":0.51,"y":0.58}]}
         ]}"""
     ),
     VectorExample(
@@ -135,8 +135,8 @@ private val IMAGE_SCENE_EXAMPLES = listOf(
         """
         Sure — two regions traced from the image:
         ```json
-        {"shapes":[{"label":"head","points":[{"x":0.38,"y":0.10},{"x":0.62,"y":0.10},{"x":0.60,"y":0.40},{"x":0.40,"y":0.40}]},
-        {"label":"torso","points":[{"x":0.30,"y":0.42},{"x":0.70,"y":0.42},{"x":0.74,"y":0.95},{"x":0.26,"y":0.95}]}]}
+        {"shapes":[{"label":"head","points":[{"x":0.41,"y":0.12},{"x":0.47,"y":0.16},{"x":0.485,"y":0.23},{"x":0.46,"y":0.30},{"x":0.41,"y":0.34},{"x":0.36,"y":0.30},{"x":0.335,"y":0.23},{"x":0.35,"y":0.16}]},
+        {"label":"torso","points":[{"x":0.22,"y":0.40},{"x":0.58,"y":0.40},{"x":0.53,"y":0.74},{"x":0.27,"y":0.74}]}]}
         ```
         """.trimIndent()
     ),
@@ -213,7 +213,7 @@ fun AiVectorScreen() {
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 if (shape != null) {
                     OGImageView(
-                        source = OGImageResourceFileType("sample_portrait", OGImageFormat.JPEG),
+                        source = OGImageResourceFileType("ai_headshot", OGImageFormat.JPEG),
                         clipShape = shape,                       // ← the model's lasso, live
                         contentScale = ContentScale.Crop,
                         alignment = BiasAlignment(0f, 0f),
@@ -274,7 +274,7 @@ fun AiVectorScreen() {
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 if (shape != null) {
                     OGImageView(
-                        source = OGImageResourceFileType("sample_portrait", OGImageFormat.JPEG),
+                        source = OGImageResourceFileType("ai_headshot", OGImageFormat.JPEG),
                         clipShape = shape,                       // ← the vision model's silhouette, live
                         contentScale = ContentScale.Crop,
                         alignment = BiasAlignment(0f, 0f),
@@ -307,7 +307,7 @@ fun AiVectorScreen() {
                     scene.shapes.forEach { region ->
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             OGImageView(
-                                source = OGImageResourceFileType("sample_portrait", OGImageFormat.JPEG),
+                                source = OGImageResourceFileType("ai_headshot", OGImageFormat.JPEG),
                                 clipShape = region.toShape(smoothing),  // ← one live clip per region
                                 contentScale = ContentScale.Crop,
                                 alignment = BiasAlignment(0f, 0f),
