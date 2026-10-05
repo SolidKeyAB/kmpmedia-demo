@@ -47,6 +47,7 @@ import com.solidkey.painpoints.style.OGBoil
 import com.solidkey.painpoints.style.OGStyles
 import com.solidkey.painpoints.style.boiled
 import com.solidkey.painpoints.style.pixelateFill
+import com.solidkey.painpoints.text.OGStyledText
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -241,7 +242,26 @@ fun BoilingLinesScreen() {
             Text("⚠️ invalid style JSON — fix it to see the preview", color = Color(0xFFFF8A80), fontSize = 12.sp)
         }
 
+        // ── Styled vector TEXT: each glyph outline run through an OGStyle (hand-drawn letters) ──
         Spacer(Modifier.height(4.dp))
+        Text("Styled vector text · OGStyledText(text, style)", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        Text(
+            "The same style ops, applied to TEXT: each letter's vector outline runs through the style, so the " +
+                "letters themselves are hand-inked and alive (roughen + boil here). Vectorized once, styled per " +
+                "frame — exactly what a hand-drawn word-game tile wants.",
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+        )
+        val handDrawnText = remember {
+            OGStyles.decode("""{"ops":[{"op":"roughen","amplitude":0.02,"detail":4},{"op":"boil","amplitude":0.012,"boilFps":7}]}""")
+        }
+        Box(
+            modifier = Modifier.fillMaxWidth().background(Color(0xFFFAF7FF)).padding(vertical = 20.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            OGStyledText(text = "WordStorm", style = handDrawnText, fontSize = 40.sp, color = Color(0xFF7B2FF7))
+        }
+
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),

@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -30,6 +31,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 import com.solidkey.painpoints.ai.OGAiVector
 import com.solidkey.painpoints.ai.OGImageInfo
 import com.solidkey.painpoints.ai.OGVectorTarget
@@ -160,6 +162,7 @@ fun AiVectorScreen() {
     seedSvgFile("ai_gauge.svg", AI_GAUGE_SVG) { gaugePath = it }
 
     var showPrompt by remember { mutableStateOf(false) }
+    var smoothing by remember { mutableStateOf(0f) }
 
     Column(
         modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -182,6 +185,23 @@ fun AiVectorScreen() {
             label = { Text(if (showPrompt) "Hide the prompt sent to the model" else "Show the prompt sent to the model") }
         )
 
+        // Outline smoothing — rounds every polygon this screen renders (sections 1, 3a, 3b) with the
+        // library's centripetal Catmull-Rom spline. Render-time only (free at 60fps); the JSON is untouched.
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                "outline smoothing: ${(smoothing * 100).roundToInt()}%",
+                fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Slider(value = smoothing, onValueChange = { smoothing = it }, valueRange = 0f..1f)
+            Text(
+                "Drag to round a model's faceted points into a smooth outline — same points, no re-ask. " +
+                    "0 = raw polygon, 1 = fully rounded (centripetal Catmull-Rom, so it won't overshoot or " +
+                    "loop on uneven points). Applies to the lasso and the image cut-outs below.",
+                fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+            )
+        }
+
         // ── describe → clip region ────────────────────────────────────────────────
         SectionHeader("1 · describe → clip region")
         VectorPlayground(
@@ -189,7 +209,7 @@ fun AiVectorScreen() {
             showPrompt = showPrompt,
             promptFor = { OGAiVector.polygonPrompt(it) },
         ) { json ->
-            val shape = OGAiVector.decodePolygonOrNull(json)
+            val shape = OGAiVector.decodePolygonOrNull(json, smoothing)
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 if (shape != null) {
                     OGImageView(
@@ -250,7 +270,7 @@ fun AiVectorScreen() {
             showPrompt = showPrompt,
             promptFor = { OGAiVector.imageToVectorPrompt(hint = it, target = OGVectorTarget.POLYGON) },
         ) { json ->
-            val shape = OGAiVector.decodePolygonOrNull(json)
+            val shape = OGAiVector.decodePolygonOrNull(json, smoothing)
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 if (shape != null) {
                     OGImageView(
@@ -288,7 +308,7 @@ fun AiVectorScreen() {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             OGImageView(
                                 source = OGImageResourceFileType("sample_portrait", OGImageFormat.JPEG),
-                                clipShape = region.toShape(),    // ← one live clip per region
+                                clipShape = region.toShape(smoothing),  // ← one live clip per region
                                 contentScale = ContentScale.Crop,
                                 alignment = BiasAlignment(0f, 0f),
                                 modifier = Modifier.size(104.dp),
