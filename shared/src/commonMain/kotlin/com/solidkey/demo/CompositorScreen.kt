@@ -46,7 +46,14 @@ import com.solidkey.painpoints.compositor.OGLayerContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.LayoutDirection
+import com.solidkey.painpoints.compositor.OGGifDither
 import com.solidkey.painpoints.compositor.exportFrames
 import com.solidkey.painpoints.compositor.exportGif
 import com.solidkey.painpoints.compositor.exportMp4
@@ -69,8 +76,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 
 // ── The demo composition ──────────────────────────────────────────────────────────────────────
-// A 288×288, 2s, 20fps scene built entirely from SOLID colour layers (no bitmaps needed → identical
-// on Android & iOS) clipped to KMPMedia shapes and animated on ONE timeline. Only density-independent
+// A 288×288, 2s, 20fps scene: a full-canvas gradient backdrop (so the GIF dither toggle is visible)
+// plus SOLID colour layers clipped to KMPMedia shapes, all animated on ONE timeline. Only density-independent
 // clips are used (CircleShape / DiamondShape(0dp) / TriangleShape(0dp) / RoundedCornerShape(percent))
 // so the on-screen preview (screen density) and the exported GIF (density 1) match exactly — a Dp-based
 // corner would render rounder in the preview than in the file. All positions/sizes are raw pixels.
@@ -87,9 +94,20 @@ private fun track(vararg stops: Triple<Long, Float, OGEasing>): OGKeyframedFloat
     keyframes = stops.map { OGKeyframe(it.first, it.second, it.third) },
 )
 
-private fun demoComposition(): OGComposition {
+private fun demoComposition(gradient: ImageBitmap): OGComposition {
     val e = OGEasing.EASE_IN_OUT
     val lin = OGEasing.LINEAR
+
+    // Full-canvas gradient backdrop. A smooth gradient is exactly where a 256-colour GIF palette BANDS —
+    // so this layer makes the Floyd–Steinberg dither toggle visible: off = steppy bands, on = smooth.
+    val backdrop = OGCompositionLayer(
+        id = "gradient",
+        content = OGLayerContent.Image(gradient),
+        width = CANVAS, height = CANVAS,
+        x = OGKeyframedFloat.const(0f),
+        y = OGKeyframedFloat.const(0f),
+        opacity = OGKeyframedFloat.const(1f),
+    )
 
     // Hero circle: bobs vertically, pulses in scale, fades in over the first 300ms.
     val circle = OGCompositionLayer(
@@ -147,8 +165,22 @@ private fun demoComposition(): OGComposition {
         durationMs = 2000L,
         fps = 20,
         background = BACKDROP,
-        layers = listOf(circle, diamond, triangle, badge),
+        layers = listOf(backdrop, circle, diamond, triangle, badge),
     )
+}
+
+/** A full-canvas diagonal gradient `ImageBitmap` — the content a GIF palette bands without dithering. */
+private fun gradientBitmap(density: androidx.compose.ui.unit.Density): ImageBitmap {
+    val w = CANVAS.toInt(); val h = CANVAS.toInt()
+    val bmp = ImageBitmap(w, h)
+    CanvasDrawScope().draw(density, LayoutDirection.Ltr, Canvas(bmp), Size(w.toFloat(), h.toFloat())) {
+        drawRect(
+            Brush.linearGradient(
+                colors = listOf(Color(0xFF1E3A8A), TEAL, AMBER, PINK),
+            )
+        )
+    }
+    return bmp
 }
 
 /**
@@ -167,7 +199,9 @@ private fun demoComposition(): OGComposition {
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun CompositorScreen() {
-    val composition = remember { demoComposition() }
+    val density = LocalDensity.current
+    val gradient = remember(density) { gradientBitmap(density) }
+    val composition = remember(gradient) { demoComposition(gradient) }
     val scope = rememberCoroutineScope()
     val gifSaver = rememberGifSaver()
     val mp4Saver = rememberMp4Saver()
@@ -175,6 +209,8 @@ fun CompositorScreen() {
     var playing by remember { mutableStateOf(true) }
     var scrub by remember { mutableStateOf(false) }
     var scrubMs by remember { mutableStateOf(0f) }
+
+    var dither by remember { mutableStateOf(true) }
 
     var exporting by remember { mutableStateOf(false) }
     var exportInfo by remember { mutableStateOf<String?>(null) }
@@ -267,6 +303,14 @@ fun CompositorScreen() {
         }
 
         // ── Export ────────────────────────────────────────────────────────────────────
+        // Dither toggle: Floyd–Steinberg (1.26.0) vs plain nearest-colour. Re-export to compare the
+        // gradient backdrop — off bands into steps, on stays smooth at the same 256-colour palette.
+        FilterChip(
+            selected = dither,
+            onClick = { dither = !dither },
+            leadingIcon = { Text(if (dither) "✨" else "▦", fontSize = 14.sp) },
+            label = { Text(if (dither) "Dither: on (smooth gradients)" else "Dither: off (bands)") },
+        )
         Button(
             onClick = {
                 if (exporting) return@Button
@@ -274,14 +318,15 @@ fun CompositorScreen() {
                     exporting = true
                     exportInfo = "Rendering ${composition.frameCount} frames…"
                     yield() // let the "Rendering…" label paint before the one-shot encode
-                    val bytes = composition.exportGif()
+                    val mode = if (dither) OGGifDither.FLOYD_STEINBERG else OGGifDither.NONE
+                    val bytes = composition.exportGif(dither = mode)
                     val name = "compositor_export_$exportNonce"
                     val ok = gifSaver.save(name, bytes)
                     if (ok) {
                         exportFile = name
                         exportNonce++
                         exportInfo = "Exported ${composition.frameCount} frames · " +
-                            "${bytes.size / 1024} KB GIF · looping"
+                            "${bytes.size / 1024} KB GIF · looping · dither ${if (dither) "on" else "off"}"
                     } else {
                         exportInfo = "Save failed"
                     }
@@ -432,7 +477,8 @@ fun CompositorScreen() {
             "Under the hood: com.solidkey.painpoints.compositor — OGComposition (canvas + durationMs/fps " +
                 "timeline + back-to-front layers), OGCompositionLayer (each track an OGKeyframedFloat, any " +
                 "Shape clip, a [startMs,endMs] window), OGCompositionView (frame-clock preview / scrubber), " +
-                "exportGif() → the pure-Kotlin OGGifEncoder, exportMp4() → the OS H.264 encoder " +
+                "exportGif() → the pure-Kotlin OGGifEncoder (Floyd–Steinberg dithered by default, 1.26.0), " +
+                "exportMp4() → the OS H.264 encoder " +
                 "(MediaCodec / AVAssetWriter), and exportFrames() → the raw frame sequence. Zero new " +
                 "dependencies, identical on Android & iOS. " +
                 "See docs/COMPOSITOR.md.",
