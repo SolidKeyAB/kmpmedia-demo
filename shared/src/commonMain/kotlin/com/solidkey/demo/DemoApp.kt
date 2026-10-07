@@ -39,6 +39,7 @@ enum class DemoScreen(val title: String, val emoji: String, val blurb: String) {
     Video("Video Playback", "🎬", "Stream a clip through one cross-platform OGAVPlayer (ExoPlayer on Android, AVPlayer on iOS) and re-frame it live inside any shape — circle, triangle, diamond — with transport controls, loop, and load any URL."),
     MorphClip("Morph the clip itself", "🫧", "The clip MASK animates circle → diamond → triangle → lasso while a video (and a GIF) keep playing underneath. One OGMorphShape drives every surface's clipShape — clipping moving media to a morphing outline, 60fps, same code on Android & iOS."),
     BoilingLines("Boiling lines (moving style)", "🖊️", "A prototype 'moving style': OGBoil jitters every vertex of an outline a few times a second — the hand-drawn 'living line'. Drawn as a stroke it's a wiggly line; dropped into a clipShape it's a living media edge. Pure, deterministic, zero-dependency. The first member of a procedural com.solidkey.painpoints.style family."),
+    Particles("Particles & parametric shapes", "🎆", "Two data-defined generators from com.solidkey.painpoints.particle / .shape. A particle effect (rate, gravity, colour-over-life, shape) that OGParticleView compiles once and simulates on the frame clock — six presets + a live JSON editor. And parametric outlines (star / gear / flower / squircle / blob) wrapped in an OGPolygonShape clipShape, generated once and spun on the GPU. Both author-as-JSON, both 60fps, same code on Android & iOS."),
     SoftMask("Soft & multi-region masks", "🪶", "Beyond a single hard-edged shape: feather a photo's edge into a vignette (softEdge), fade it along a gradient (maskBrush), or clip it to more than one region at once — two portholes, a bitten diamond — with OGMultiRegionShape. One offscreen DstIn pass / a path op, zero per-frame cost, same code on Android & iOS."),
     Compositor("Compositor + export", "📽️", "The flagship: compose several layers on ONE timeline, animate them with keyframed x/y/scale/rotation/opacity, preview live at 60fps — then export the whole scene to a single shareable animated GIF, all on device. OGComposition + OGCompositionView + exportGif(), pure commonMain, zero deps. No other KMP library does compose-and-export."),
     Interactive("Interactive shapes", "🤹", "Grab a shape-clipped photo and drag it, pinch to zoom, twist to rotate — then fling it and watch it spring back. Modifier.ogInteractive adds the transform + momentum + spring; OGHitArea means only touches inside the actual silhouette grab it, not its bounding box. Zero-dep, 60fps, same code on Android & iOS."),
@@ -73,6 +74,7 @@ fun DemoApp() {
                         DemoScreen.Video -> VideoScreen()
                         DemoScreen.MorphClip -> MorphClipScreen()
                         DemoScreen.BoilingLines -> BoilingLinesScreen()
+                        DemoScreen.Particles -> ParticlesScreen()
                         DemoScreen.SoftMask -> SoftMaskScreen()
                         DemoScreen.Compositor -> CompositorScreen()
                         DemoScreen.Interactive -> InteractiveScreen()
