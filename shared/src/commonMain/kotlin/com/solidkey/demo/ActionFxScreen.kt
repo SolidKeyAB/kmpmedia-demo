@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -41,6 +42,7 @@ import com.solidkey.painpoints.fx.OGSlashes
 import com.solidkey.painpoints.fx.OGSpeedLinesView
 import com.solidkey.painpoints.fx.OGSpeedLines
 import com.solidkey.painpoints.fx.ogAfterImage
+import com.solidkey.painpoints.fx.ogBloom
 import com.solidkey.painpoints.fx.ogGlow
 import com.solidkey.painpoints.particle.OGParticleView
 import com.solidkey.painpoints.particle.OGParticles
@@ -74,6 +76,7 @@ fun ActionFxScreen() {
         SpeedLinesSection()
         ElementalSection()
         ModifiersSection()
+        BloomSection()
         ComposedSection()
     }
 }
@@ -141,6 +144,54 @@ private fun ModifiersSection() {
     Text(
         "One star shape: ogGlow adds the additive halo; ogAfterImage draws fading trailing copies " +
             "(supply your motion trail). Both capture the content once per frame and re-draw it.",
+        fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+    )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun BloomSection() {
+    val radii = remember { listOf(14, 26, 40) }
+    var radius by remember { mutableStateOf(26) }
+    val hot = Color(0xFFFFE082) // warm gold — blooms vividly on the dark stage
+    val star = remember { OGParametricSpec(kind = "star", count = 6, innerRatio = 0.5f).toShape(0.12f) }
+    SectionTitle("🌟 Gaussian bloom · Modifier.ogBloom (opt-in)")
+    Text(
+        "Same star, left raw vs right through Modifier.ogBloom — a real platform gaussian blur adds a soft " +
+            "luminous halo. Drag the radius.",
+        fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+    )
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        radii.forEach { r -> FilterChip(radius == r, { radius = r }, { Text("${r}dp") }) }
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        // Raw star — no effect.
+        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(Modifier.fillMaxWidth().aspectRatio(1f).background(DARK), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(64.dp).clip(star).background(hot))
+            }
+            Spacer(Modifier.height(4.dp))
+            Text("raw", fontSize = 11.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f))
+        }
+        // Same star through ogBloom — the gaussian node is larger than the star so the halo has room to spread.
+        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(Modifier.fillMaxWidth().aspectRatio(1f).background(DARK), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier.size(150.dp).ogBloom(radius = radius.dp, intensity = 1f, color = hot),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(Modifier.size(64.dp).clip(star).background(hot))
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Text("ogBloom · gaussian", fontSize = 11.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f))
+        }
+    }
+    Spacer(Modifier.height(8.dp))
+    Text(
+        "ogBloom runs the content through a REAL platform gaussian blur (Android RenderEffect / iOS Skia), " +
+            "so the halo is smooth, not stacked scaled copies like ogGlow. Opt-in: needs Android 31+ (no-ops " +
+            "below) and isn't pixel-identical across platforms — use ogGlow for the zero-dep frame-identical halo.",
         fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
     )
 }
