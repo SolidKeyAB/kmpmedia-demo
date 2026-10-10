@@ -87,7 +87,7 @@ import kotlin.math.sin
  * on-image finger-draw produces. Fed to [OGPolygonShape] it clips the photo to JUST the head — no
  * shoulders, shirt or couch — with no external editor. (Traced for the sample at 1× center framing.)
  */
-private val AVATAR_HEAD_OUTLINE: Shape = OGPolygonShape.of(
+internal val AVATAR_HEAD_OUTLINE: Shape = OGPolygonShape.of(
     0.48f to 0.02f, 0.64f to 0.04f, 0.78f to 0.10f, 0.86f to 0.22f,
     0.88f to 0.38f, 0.84f to 0.54f, 0.73f to 0.69f, 0.59f to 0.79f,
     0.48f to 0.83f, 0.37f to 0.79f, 0.25f to 0.68f, 0.16f to 0.53f,
@@ -99,7 +99,7 @@ private val AVATAR_HEAD_OUTLINE: Shape = OGPolygonShape.of(
  * the box empty below this, so the neck joint is pinned here — not at the box bottom — to seat the
  * head against the torso with no floating gap.
  */
-private const val LASSO_CHIN_FRAC = 0.83f
+internal const val LASSO_CHIN_FRAC = 0.83f
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -321,7 +321,7 @@ fun BodyRigScreen() {
  * the stage; [pose] supplies every joint angle for this frame, plus a vertical bob and a body sway.
  */
 @Composable
-private fun BodyFigure(
+internal fun BodyFigure(
     stageW: Float,
     stageH: Float,
     pose: Pose,
@@ -455,7 +455,7 @@ private fun BodyFigure(
  * [brush] so it reads as a mannequin limb (the head is the only photo in the rig).
  */
 @Composable
-private fun Limb(
+internal fun Limb(
     pivot: Offset,
     upperLen: Float,
     lowerLen: Float,
@@ -500,7 +500,7 @@ private fun Limb(
 // swings its tip toward screen-left. Every field is an ABSOLUTE angle except the *lower* limb angles,
 // which are RELATIVE to their upper segment (they live in its rotated frame → forward kinematics).
 
-private data class Pose(
+internal data class Pose(
     val neck: Float,
     val lSh: Float, val lEl: Float,
     val rSh: Float, val rEl: Float,
@@ -522,7 +522,7 @@ private const val KNEE = 3f
 private fun lerp(a: Float, b: Float, t: Float) = a + (b - a) * t
 
 /** The dynamics the user can play with. Each maps the looping [phase] (0..2π) to a full-body [pose]. */
-private enum class Move(val label: String, val glyph: String, val periodMs: Int) {
+internal enum class Move(val label: String, val glyph: String, val periodMs: Int) {
     Idle("Idle", "🧘", 3200) {
         override fun pose(p: Float): Pose {
             val s = sin(p)
