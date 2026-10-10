@@ -63,7 +63,9 @@ import com.solidkey.painpoints.image.loading.OGImageResourceFileType
 import com.solidkey.painpoints.look.OGLookSpec
 import com.solidkey.painpoints.look.OGLooks
 import com.solidkey.painpoints.look.ogLook
-import com.solidkey.painpoints.motion.OGFollowChain
+import com.solidkey.painpoints.motion.OGClothSpec
+import com.solidkey.painpoints.motion.OGClothStrip
+import com.solidkey.painpoints.motion.OGCloths
 import com.solidkey.painpoints.motion.OGSpringSpec
 import com.solidkey.painpoints.motion.OGSpringValue
 import com.solidkey.painpoints.motion.OGSquash
@@ -83,7 +85,7 @@ import kotlin.math.sin
  *  • a profile two-leg / two-arm rig strides with a proper stance/swing cycle,
  *  • the **knees and elbows spring-LAG** their drive angle ([OGSpringValue]) → follow-through / whip on
  *    the lower limbs, and the body **squashes** on each footfall ([OGSquash]),
- *  • a scarf trails the neck via [OGFollowChain] and the head drifts with [OGSway],
+ *  • a real cloth scarf hangs + flutters at the neck via [OGClothStrip] and the head drifts with [OGSway],
  *  • dressed with `OGSpeedLines`, `ogAfterImage`, `ogGlow`, drifting `OGParticles`, and an `ogLook`
  *    colour grade over the whole frame.
  * Reuses the FK [Limb] from [BodyRigScreen]; every effect toggles. Same code Android & iOS.
@@ -115,7 +117,13 @@ fun SceneScreen() {
     val kneeF = remember { OGSpringValue(0f) }
     val elbowN = remember { OGSpringValue(0f) }
     val elbowF = remember { OGSpringValue(0f) }
-    val chain = remember { OGFollowChain(10, OGSpringSpec(stiffness = 95f, dampingRatio = 0.4f)) }
+    // A livelier silk than the default "scarf" preset, so it flutters clearly in the showcase.
+    val cloth = remember {
+        OGClothStrip(
+            (OGCloths.preset("scarf") ?: OGClothSpec())
+                .copy(length = 0.52f, gravity = 0.45f, damping = 0.5f, wind = -1.6f, windAmplitude = 0.7f, windFrequency = 0.9f),
+        )
+    }
     val sway = remember { OGSway(amplitude = 1f, frequency = 0.55f) }
     val sim = remember { SceneSim() }
     var tick by remember { mutableStateOf(0) }
@@ -138,8 +146,9 @@ fun SceneScreen() {
                     // Lower-joint drive targets, then spring-LAG them (or snap, if dynamics off).
                     val kneeTN = KNEE_MAX * (0.5f + 0.5f * cos(ph))
                     val kneeTF = KNEE_MAX * (0.5f - 0.5f * cos(ph))
-                    val elbowTN = ELBOW_BASE + ELBOW_SW * sin(ph)
-                    val elbowTF = ELBOW_BASE - ELBOW_SW * sin(ph)
+                    // Elbows bend the OPPOSITE way to knees (forearm forward, not back) → negative angle.
+                    val elbowTN = -ELBOW_BASE - ELBOW_SW * sin(ph)
+                    val elbowTF = -ELBOW_BASE + ELBOW_SW * sin(ph)
                     if (dynamics) {
                         kneeN.update(kneeTN, dt, lagFeel); kneeF.update(kneeTF, dt, lagFeel)
                         elbowN.update(elbowTN, dt, lagFeel); elbowF.update(elbowTF, dt, lagFeel)
@@ -159,16 +168,16 @@ fun SceneScreen() {
 
                     sim.headSwayDeg = if (dynamics) sway.value(sim.elapsed) * 4f else 0f
 
-                    // Scarf: anchor at the neck, feed the chain an amplified fluttering point so it streams
-                    // out behind (left) and whips — the OGFollowChain follow-through payoff.
+                    // Scarf anchor = the figure's ACTUAL rendered neck, so the wrap + cloth tail stay glued
+                    // to it. The figure bobs (an offset) and squashes (scaleY around the pelvis) with NO
+                    // horizontal sway, so reproduce exactly that transform here (don't invent a sway).
                     if (sim.figW > 0f) {
-                        val cx = sim.figW * CX_FRAC
-                        val ax = cx + sin(ph) * sim.figW * 0.02f
-                        val ay = sim.figH * SHOULDER_Y_FRAC + bob * sim.figH
+                        val pelvisY = sim.figH * PELVIS_Y_FRAC
+                        val neckBaseY = sim.figH * (SHOULDER_Y_FRAC + 0.03f) // just below the chin
+                        val ax = sim.figW * CX_FRAC
+                        val ay = bob * sim.figH + pelvisY + (neckBaseY - pelvisY) * sim.squashY
                         sim.neckX = ax; sim.neckY = ay
-                        val lx = ax - sim.figW * 0.24f + sin(ph) * sim.figW * 0.06f + sway.value(sim.elapsed) * sim.figW * 0.05f
-                        val ly = ay + sim.figH * 0.05f + sin(ph * 2f) * sim.figH * 0.05f
-                        chain.update(lx, ly, dt)
+                        cloth.step(dt, ax / sim.figW, ay / sim.figH)
                     }
                     tick++
                 }
@@ -183,10 +192,11 @@ fun SceneScreen() {
     ) {
         Text("🎬 Scene in motion", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
         Text(
-            "A side-on walk cycle with your head, made to feel real by the 1.35.0 dynamics: the knees & " +
-                "elbows spring-lag the stride (follow-through) and the body squashes on each footfall. Plus a " +
-                "follow-chain scarf, head sway, speed lines, petals and a colour grade. Toggle 'Dynamics' to " +
-                "feel robotic → alive.",
+            "A side-on walk cycle with your head, made to feel real by the dynamics: the knees & elbows " +
+                "spring-lag the stride (follow-through) and the body squashes on each footfall. The scarf is " +
+                "wrapped round the neck, its loose end a REAL cloth strip (OGClothStrip — Verlet fabric that " +
+                "flutters in the wind), plus head sway, speed lines, petals and a colour grade. Toggle " +
+                "'Dynamics' to feel robotic → alive.",
             fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f),
         )
 
@@ -217,18 +227,18 @@ fun SceneScreen() {
                 if (scarf) {
                     Canvas(Modifier.fillMaxSize()) {
                         if (tick < 0 || sim.figW <= 0f) return@Canvas
-                        var prevX = sim.neckX
-                        var prevY = sim.neckY
-                        val n = chain.count
-                        for (i in 0 until n) {
+                        val n = cloth.count
+                        var prevX = cloth.x(0) * sim.figW
+                        var prevY = cloth.y(0) * sim.figH
+                        for (i in 1 until n) {
                             val f = i / (n - 1f)
-                            val x = chain.x(i)
-                            val y = chain.y(i)
+                            val x = cloth.x(i) * sim.figW
+                            val y = cloth.y(i) * sim.figH
                             drawLine(
                                 color = lerpColor(SCARF_A, SCARF_B, f).copy(alpha = 0.95f * (1f - 0.1f * f)),
                                 start = Offset(prevX, prevY),
                                 end = Offset(x, y),
-                                strokeWidth = (sim.figW * 0.052f) * (1f - 0.55f * f),
+                                strokeWidth = (sim.figW * 0.055f) * (1f - 0.5f * f),
                                 cap = StrokeCap.Round,
                             )
                             prevX = x; prevY = y
@@ -245,6 +255,22 @@ fun SceneScreen() {
                         bob = sim.bob, squashX = sim.squashX, squashY = sim.squashY, headSwayDeg = sim.headSwayDeg,
                         headSrc = headSrc, density = density,
                     )
+                }
+
+                // The scarf WRAP around the neck — a collar band + knot drawn ON TOP of the figure, at the
+                // neck the cloth tail streams from, so it reads as a scarf tied round the neck (not a loose
+                // streamer). The tail itself (drawn behind, above) is the real OGClothStrip cloth.
+                if (scarf && sim.figW > 0f) {
+                    Canvas(Modifier.fillMaxSize()) {
+                        if (tick < 0) return@Canvas
+                        val cxp = sim.neckX
+                        val cyp = sim.neckY
+                        val wc = sim.figW * 0.22f
+                        val hc = sim.figH * 0.045f
+                        drawOval(SCARF_A, topLeft = Offset(cxp - wc / 2f, cyp - hc / 2f), size = Size(wc, hc))
+                        drawOval(SCARF_B.copy(alpha = 0.5f), topLeft = Offset(cxp - wc / 2f, cyp - hc * 0.05f), size = Size(wc, hc * 0.5f))
+                        drawCircle(SCARF_B, radius = sim.figW * 0.04f, center = Offset(cxp - sim.figW * 0.02f, cyp + hc * 0.15f))
+                    }
                 }
             }
 
@@ -270,8 +296,9 @@ fun SceneScreen() {
         Text(
             "The gait + rig are demo code (reusing the 🧍 Body-rig's FK Limb); 'Dynamics' off snaps the " +
                 "joints to their drive angle (stiff, robotic), on springs them so the lower limbs lag + the " +
-                "body squashes (OGSpring/OGSquash). The scarf is OGFollowChain; the dressing (speed lines, " +
-                "trail, glow, petals, grade) is all shipped library primitives. Same code Android & iOS.",
+                "body squashes (OGSpring/OGSquash). The scarf is a real OGClothStrip (Verlet cloth — " +
+                "inextensible, gravity + wind); the dressing (speed lines, trail, glow, petals, grade) is all " +
+                "shipped library primitives. Same code Android & iOS.",
             fontSize = 11.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
         )
     }
