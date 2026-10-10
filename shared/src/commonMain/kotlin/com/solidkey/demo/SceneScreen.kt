@@ -63,6 +63,10 @@ import com.solidkey.painpoints.image.loading.OGImageResourceFileType
 import com.solidkey.painpoints.look.OGLookSpec
 import com.solidkey.painpoints.look.OGLooks
 import com.solidkey.painpoints.look.ogLook
+import com.solidkey.painpoints.motion.OGCloth
+import com.solidkey.painpoints.motion.OGClothCollider
+import com.solidkey.painpoints.motion.OGClothMeshSpec
+import com.solidkey.painpoints.motion.OGClothPinMode
 import com.solidkey.painpoints.motion.OGClothSpec
 import com.solidkey.painpoints.motion.OGClothStrip
 import com.solidkey.painpoints.motion.OGCloths
@@ -98,7 +102,9 @@ fun SceneScreen() {
     var trail by remember { mutableStateOf(false) }
     var glow by remember { mutableStateOf(false) }
     var scarf by remember { mutableStateOf(true) }
+    var scaffold by remember { mutableStateOf(true) }
     var dynamics by remember { mutableStateOf(true) }
+    var sunset by remember { mutableStateOf(true) }
     var lookName by remember { mutableStateOf("warm") }
 
     val density = LocalDensity.current
@@ -108,6 +114,11 @@ fun SceneScreen() {
     // frame, so it animates — same pattern as the Body-rig screen).
     val clock by rememberInfiniteTransition(label = "scene").animateFloat(
         0f, TAU, infiniteRepeatable(tween(WALK_PERIOD_MS, easing = LinearEasing), RepeatMode.Restart), label = "walk",
+    )
+    // The sun's slow descent: 0 = high day, 1 = sunk below the horizon. Reverses so the sky breathes
+    // day→dusk→night→dawn. Drives the sun position/colour, the sky gradient, and the whole-frame ogLook grade.
+    val sunProgress by rememberInfiniteTransition(label = "sun").animateFloat(
+        0f, 1f, infiniteRepeatable(tween(SUN_PERIOD_MS, easing = LinearEasing), RepeatMode.Reverse), label = "sunset",
     )
 
     // Dynamics state: one spring per lower joint (knees + elbows) that LAGS its drive angle → the
@@ -125,6 +136,17 @@ fun SceneScreen() {
         )
     }
     val sway = remember { OGSway(amplitude = 1f, frequency = 0.55f) }
+    // A 2-D OGCloth FLAG flying from a pole in the top-left (clear of the figure): a real cloth SHEET (not the
+    // 1-D scarf) pinned along its hoist (LEFT_EDGE) that streams out, waves, and droops in the gusty wind, its
+    // folds catching light. The pole is a collider, so the flag presses/wraps against it.
+    val flag = remember {
+        OGCloth(
+            (OGCloths.meshPreset("sail") ?: OGClothMeshSpec())
+                .copy(cols = 16, rows = 9, width = 0.3f, height = 0.17f, gravity = 0.3f, damping = 0.35f, wind = 1.7f, windAmplitude = 1.5f, windFrequency = 1.5f, windSeed = 9, friction = 0.2f, pinMode = OGClothPinMode.LEFT_EDGE),
+        ).apply {
+            colliders.add(OGClothCollider(FLAG_POLE_X, FLAG_TOP, FLAG_POLE_X, FLAG_POLE_B, 0.01f)) // the flagpole
+        }
+    }
     val sim = remember { SceneSim() }
     var tick by remember { mutableStateOf(0) }
 
@@ -179,6 +201,9 @@ fun SceneScreen() {
                         sim.neckX = ax; sim.neckY = ay
                         cloth.step(dt, ax / sim.figW, ay / sim.figH)
                     }
+                    // The flag lives in SCENE-normalized space (0..1 of the scene box): its hoist (left edge)
+                    // pins along the flagpole; the body streams out to the right and waves in the wind.
+                    flag.step(dt, FLAG_POLE_X, FLAG_HOIST_TOP, FLAG_POLE_X, FLAG_HOIST_BOT)
                     tick++
                 }
                 last = now
@@ -192,28 +217,69 @@ fun SceneScreen() {
     ) {
         Text("🎬 Scene in motion", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
         Text(
-            "A side-on walk cycle with your head, made to feel real by the dynamics: the knees & elbows " +
-                "spring-lag the stride (follow-through) and the body squashes on each footfall. The scarf is " +
-                "wrapped round the neck, its loose end a REAL cloth strip (OGClothStrip — Verlet fabric that " +
-                "flutters in the wind), plus head sway, speed lines, petals and a colour grade. Toggle " +
-                "'Dynamics' to feel robotic → alive.",
+            "A side-on walk cycle with your head at sunset. The dynamics make it feel real: the knees & " +
+                "elbows spring-lag the stride (follow-through) and the body squashes on each footfall. Two " +
+                "kinds of real cloth — a 1-D OGClothStrip scarf at the neck and a 2-D OGCloth flag on the pole " +
+                "— ripple in the wind, while the sun descends and an ogLook grade shifts the whole frame from " +
+                "day to dusk to night. Toggle 'Sunset', 'Flag' or 'Dynamics' to see each part.",
             fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f),
         )
 
-        val lookSpec = if (lookName == "original") OGLookSpec.Identity else (OGLooks.preset(lookName) ?: OGLookSpec.Identity)
-        // Read the clock UNCONDITIONALLY so this composable recomposes every frame (otherwise a first
+        // Read the clocks UNCONDITIONALLY so this composable recomposes every frame (otherwise a first
         // size==0 frame wouldn't subscribe and the figure would never appear once the size arrived).
         val walkPhase = clock
+        // Sun progress drives the sunset: animated when 'Sunset' is on, else a fixed dusk so the manual
+        // colour-grade picker + a static backdrop apply instead.
+        val sp = if (sunset) sunProgress else 0.45f
+        // Quantize the value feeding the ogLook grade so its cached ColorFilter rebuilds ~40×/cycle, not 60×/s.
+        val spLook = (sp * 40f).roundToInt() / 40f
+        val lookSpec = remember(sunset, spLook, lookName) {
+            when {
+                sunset -> sunsetLook(spLook)
+                lookName == "original" -> OGLookSpec.Identity
+                else -> OGLooks.preset(lookName) ?: OGLookSpec.Identity
+            }
+        }
 
         Box(
             Modifier.fillMaxWidth().aspectRatio(0.80f).clip(RoundedCornerShape(18.dp))
-                .background(nightSkyBrush)
+                .background(skyBrush(sp))
                 .ogLook(lookSpec),
             contentAlignment = Alignment.Center,
         ) {
             Canvas(Modifier.fillMaxSize()) {
                 if (tick < 0) return@Canvas
-                drawScene(sim.elapsed, size.width, size.height)
+                drawScene(sim.elapsed, sp, size.width, size.height)
+            }
+
+            // A cloth FLAG (2-D OGCloth) flying from a pole in the top-left. Pole first, then the sheet.
+            if (scaffold) {
+                Canvas(Modifier.fillMaxSize()) {
+                    if (tick < 0) return@Canvas
+                    val wd = size.width; val ht = size.height
+                    val poleColor = Color(0xFF4E4034)
+                    val sw = wd * 0.012f
+                    drawLine(poleColor, Offset(FLAG_POLE_X * wd, FLAG_POLE_B * ht), Offset(FLAG_POLE_X * wd, FLAG_TOP * ht), strokeWidth = sw, cap = StrokeCap.Round)
+                    drawCircle(Color(0xFFCDB89A), radius = sw * 0.9f, center = Offset(FLAG_POLE_X * wd, FLAG_TOP * ht)) // finial
+                    // The flag — filled quads through the cloth nodes, shaded along its length (depth toward the
+                    // free edge) AND by fold (a cell squeezed horizontally is a wave crest, so darken it).
+                    val restW = 0.3f / (flag.cols - 1)
+                    for (r in 0 until flag.rows - 1) {
+                        for (c in 0 until flag.cols - 1) {
+                            val base = lerpColor(FLAG_A, FLAG_B, c / (flag.cols - 2f))
+                            val fold = (abs(flag.x(c + 1, r) - flag.x(c, r)) / restW).coerceIn(0.45f, 1f)
+                            val col = Color(base.red * fold, base.green * fold, base.blue * fold, 1f)
+                            val quad = Path().apply {
+                                moveTo(flag.x(c, r) * wd, flag.y(c, r) * ht)
+                                lineTo(flag.x(c + 1, r) * wd, flag.y(c + 1, r) * ht)
+                                lineTo(flag.x(c + 1, r + 1) * wd, flag.y(c + 1, r + 1) * ht)
+                                lineTo(flag.x(c, r + 1) * wd, flag.y(c, r + 1) * ht)
+                                close()
+                            }
+                            drawPath(quad, color = col)
+                        }
+                    }
+                }
             }
 
             if (speedLines) OGSpeedLinesView(OGSpeedLines.MOTION, Modifier.fillMaxSize())
@@ -279,8 +345,10 @@ fun SceneScreen() {
 
         Text("Effects", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            EffectChip("🌅 Sunset", sunset) { sunset = it }
             EffectChip("🏃 Dynamics (follow-through)", dynamics) { dynamics = it }
             EffectChip("🧣 Scarf", scarf) { scarf = it }
+            EffectChip("🚩 Flag (cloth sheet)", scaffold) { scaffold = it }
             EffectChip("💨 Speed lines", speedLines) { speedLines = it }
             EffectChip("🌸 Petals", petals) { petals = it }
             EffectChip("👻 Trail", trail) { trail = it }
@@ -435,11 +503,18 @@ private const val ELBOW_SW = 12f     // elbow swing (deg)
 private const val BOB = 0.02f        // vertical bob (fraction of figH)
 private const val SQUASH_K = 2.2f    // maps bob speed → squash intensity
 
+// Flagpole geometry (normalized 0..1 of the scene box), top-left so the flag clears the figure.
+private const val SUN_PERIOD_MS = 9000  // half-cycle of the sun's descent (day→night), then it reverses
+private const val FLAG_POLE_X = 0.13f   // flagpole X
+private const val FLAG_TOP = 0.08f      // pole top (finial)
+private const val FLAG_POLE_B = 0.9f    // pole bottom
+private const val FLAG_HOIST_TOP = 0.11f // where the flag's top edge pins to the pole
+private const val FLAG_HOIST_BOT = 0.28f // where the flag's bottom edge pins to the pole
+
 private val SCARF_A = Color(0xFF00E5FF) // at the neck — bright cyan, pops against the warm dusk
 private val SCARF_B = Color(0xFFB388FF) // at the free end — violet
-
-private val nightSkyBrush: Brush
-    get() = Brush.verticalGradient(listOf(Color(0xFF2B1B4A), Color(0xFF6A3A5A), Color(0xFFE8915B)))
+private val FLAG_A = Color(0xFFFF6B5C)  // flag, at the hoist — warm coral, reads against the sunset
+private val FLAG_B = Color(0xFFB32B46)  // flag, toward the free edge — deep rose, shaded for depth
 
 private val torsoBrush: Brush
     get() = Brush.verticalGradient(listOf(Color(0xFF7B2FF7), Color(0xFF5A1FC0)))
@@ -463,13 +538,42 @@ private fun lerpColor(a: Color, b: Color, t: Float): Color = Color(
     alpha = a.alpha + (b.alpha - a.alpha) * t,
 )
 
-/** A dusk backdrop with a low sun and two scrolling parallax hill layers (far slow, near fast). */
-private fun DrawScope.drawScene(elapsed: Float, w: Float, h: Float) {
-    drawCircle(Color(0xFFFFE0A3).copy(alpha = 0.85f), radius = w * 0.13f, center = Offset(w * 0.72f, h * 0.5f))
-    drawCircle(Color(0xFFFFD08A).copy(alpha = 0.35f), radius = w * 0.22f, center = Offset(w * 0.72f, h * 0.5f))
-    hillLayer(elapsed * 9f, w, h, baseY = h * 0.60f, amp = h * 0.03f, color = Color(0xFF53315F), wavelen = w * 0.65f)
-    hillLayer(elapsed * 24f, w, h, baseY = h * 0.72f, amp = h * 0.05f, color = Color(0xFF301C40), wavelen = w * 0.42f)
-    drawRect(Color(0xFF241433), topLeft = Offset(0f, h * 0.80f), size = Size(w, h * 0.20f))
+/** The sky gradient for a given sun progress [sp] (0 = day, 1 = night). */
+private fun skyBrush(sp: Float): Brush = Brush.verticalGradient(
+    listOf(
+        lerpColor(Color(0xFF4C7AB8), Color(0xFF0E0A24), sp), // top: day blue → night near-black
+        lerpColor(Color(0xFFB07AA0), Color(0xFF34203F), sp), // middle: warm → dusk purple
+        lerpColor(Color(0xFFFFC27A), Color(0xFF6A2E34), sp), // horizon: bright → dim red
+    ),
+)
+
+/** The whole-frame colour grade for a given sun progress [sp]: warm golden hour mid, cool + dim at night. */
+private fun sunsetLook(sp: Float): OGLookSpec {
+    val warm = sin(sp * PI).toFloat() // 0 at the ends, 1 at the middle (golden hour)
+    return OGLookSpec(
+        brightness = 0.06f - 0.30f * sp,
+        contrast = 1f + 0.06f * sp,
+        saturation = 1.05f - 0.28f * sp,
+        temperature = 0.08f + 0.30f * warm - 0.26f * sp,
+    )
+}
+
+/** A dusk backdrop: a sun that descends + reddens with [sp], over two scrolling parallax hill layers. */
+private fun DrawScope.drawScene(elapsed: Float, sp: Float, w: Float, h: Float) {
+    // The sun sinks (and drifts right) and shifts warm-white → orange → deep red as it sets.
+    val sunX = (0.62f + 0.22f * sp) * w
+    val sunY = (0.16f + 0.76f * sp) * h
+    val sunCol = if (sp < 0.5f) lerpColor(Color(0xFFFFF4C8), Color(0xFFFF9A3D), sp * 2f)
+    else lerpColor(Color(0xFFFF9A3D), Color(0xFFE03A28), (sp - 0.5f) * 2f)
+    drawCircle(sunCol.copy(alpha = 0.30f), radius = w * (0.26f - 0.06f * sp), center = Offset(sunX, sunY))
+    drawCircle(sunCol.copy(alpha = 0.90f), radius = w * 0.12f, center = Offset(sunX, sunY))
+    // Land darkens into the night; hills are drawn in front of the sun, so it sets behind them.
+    val farHill = lerpColor(Color(0xFF7A4A6A), Color(0xFF2A1838), sp)
+    val nearHill = lerpColor(Color(0xFF4A2A52), Color(0xFF180E26), sp)
+    val ground = lerpColor(Color(0xFF3A2048), Color(0xFF120A1E), sp)
+    hillLayer(elapsed * 9f, w, h, baseY = h * 0.60f, amp = h * 0.03f, color = farHill, wavelen = w * 0.65f)
+    hillLayer(elapsed * 24f, w, h, baseY = h * 0.72f, amp = h * 0.05f, color = nearHill, wavelen = w * 0.42f)
+    drawRect(ground, topLeft = Offset(0f, h * 0.80f), size = Size(w, h * 0.20f))
 }
 
 private fun DrawScope.hillLayer(scroll: Float, w: Float, h: Float, baseY: Float, amp: Float, color: Color, wavelen: Float) {
