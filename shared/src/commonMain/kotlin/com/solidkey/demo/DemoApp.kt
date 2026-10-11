@@ -33,6 +33,7 @@ import com.solidkey.painpoints.ui.test.TestMainUI
 
 /** Top-level demo destinations. */
 enum class DemoScreen(val title: String, val emoji: String, val blurb: String) {
+    Stage("One JSON → a whole movie", "🎞️", "The OGStage capstone: a single serializable document = a timeline of layers (a day→night scene + drifting petals) that ONE generator emits and ONE player plays. Authored as data, round-tripped through the JSON codec, played at 60fps and scrubbable to any instant. The library evolving from a media toolkit into a model-authorable animation engine. Same code on Android & iOS."),
     Animate("Animate a Static Image", "✨", "Take a fully-static SVG and wrap it in KMPMedia's animation primitives — toggle Scale/Rotate/Fade/Slide and watch it come alive."),
     RuntimeSvg("Runtime-editable SVG", "🎨", "Load an SVG once, then change any node by id at runtime — recolour, rotate, move — bound to Compose state. A live gauge whose needle and zones follow a slider. 'SVG as a live template', the same code on Android & iOS."),
     AiVector("AI vector (describe → shape)", "🤖", "KMPMedia's vector primitives are just data, so a language model can produce them. Decode a model's JSON reply into a live polygon lasso clipping a photo, and into an SVG patch driving a gauge — via OGAiVector, with no AI SDK or network in the library."),
@@ -78,6 +79,7 @@ fun DemoApp() {
                 null -> HomeScreen(onSelect = { current = it })
                 else -> DemoScaffold(title = screen.title, onBack = { current = null }) {
                     when (screen) {
+                        DemoScreen.Stage -> StageScreen()
                         DemoScreen.Animate -> AnimateScreen()
                         DemoScreen.RuntimeSvg -> RuntimeSvgScreen()
                         DemoScreen.AiVector -> AiVectorScreen()
