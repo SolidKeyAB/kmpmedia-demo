@@ -2,6 +2,7 @@ package com.solidkey.demo
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -66,8 +67,11 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * 🎞️ **OGStage — one JSON, a whole movie (1.42.0 PoC).** The library already had both halves of an
- * animation engine; this screen proves they are now ONE thing. A single [OGStage] document —
+ * 🎞️ **OGStage — one JSON, a whole movie + "describe → movie".** The library already had both halves
+ * of an animation engine; this screen proves they are now ONE thing — and that a language model can
+ * author the whole thing. Tap a one-line prompt ([SHOWCASE_MOVIES]) to play a movie a model wrote from
+ * it (decoded from its raw JSON reply, unchanged), or watch the built-in day→night movie. A single
+ * [OGStage] document —
  * authored here, then round-tripped through [OGStages.encode] → [OGStages.decode] (the real wire
  * path a model would use) — stacks a model-authorable day→night **scene** layer (its sun arcs and
  * sets, the frame grades day→dusk→night, all declared in the scene's own JSON motion) and a
@@ -77,11 +81,15 @@ import kotlin.math.sin
  */
 @Composable
 fun StageScreen() {
-    // ONE movie, authored once. It is encoded to JSON and decoded back before playing, so what the
-    // player renders is literally what came off the wire — exactly what a model's reply would do.
-    val authored = remember { buildMovie() }
-    val jsonChars = remember(authored) { OGStages.encode(authored).length }
-    val stage = remember(authored) { OGStages.decode(OGStages.encode(authored)) }
+    // The built-in movie, authored once. It is encoded to JSON and decoded back before playing, so
+    // what the player renders is literally what came off the wire — exactly what a model's reply does.
+    val builtIn = remember { OGStages.decode(OGStages.encode(buildMovie())) }
+
+    // "Describe → movie": pick a one-line prompt and play the movie a model wrote from it (decoded from
+    // its raw JSON reply, unchanged). null = the built-in day→night movie.
+    var selected by remember { mutableStateOf<ShowcaseMovie?>(null) }
+    val stage = remember(selected) { selected?.let { OGStages.decode(it.json) } ?: builtIn }
+    val jsonChars = remember(stage) { OGStages.encode(stage).length }
 
     var scrubbing by remember { mutableStateOf(false) }
     var scrubT by remember { mutableStateOf(0f) } // 0..1 of the timeline
@@ -105,12 +113,23 @@ fun StageScreen() {
             fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary,
         )
         Text(
-            "A single OGStage document = a timeline of layers. Here: a day→night SCENE (its sun arcs & sets, " +
-                "the frame grades, declared in the scene's own motion) + a PARTICLE layer of drifting petals + " +
-                "a LIGHTNING action-FX bolt, plus a slow push-in keyframed on the scene. One generator emits it, " +
-                "one player plays it.",
+            "A single OGStage document = a timeline of layers. One generator emits it, one player plays it. " +
+                "Tap a one-line prompt below to watch a movie a language model wrote from it — scene + " +
+                "particles + action-FX + a styled-text title, decoded from its raw JSON reply and played unchanged.",
             fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f),
         )
+
+        // ── Describe → movie: the prompt gallery ────────────────────────────────────────────────
+        Text("🤖 Describe → playable movie", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            PromptChip("🎞️ Built-in", selected == null) { selected = null; scrubbing = false; scrubT = 0f }
+            for (movie in SHOWCASE_MOVIES) {
+                PromptChip(movie.label, selected === movie) { selected = movie; scrubbing = false; scrubT = 0f }
+            }
+        }
 
         // The player. 16:9 "movie" frame; plays live, or shows the scrubbed instant.
         Box(
@@ -142,16 +161,33 @@ fun StageScreen() {
         }
 
         Text(
-            "From JSON: ${stage.layers.size} layers · $jsonChars chars · encoded → decoded → played " +
+            "From JSON: ${stage.layers.size} layers · $jsonChars chars · decoded → played " +
                 "(the real OGStages wire path) · live = ${check(stage.isLive)}",
             fontSize = 12.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.primary,
         )
 
         Spacer(Modifier.height(2.dp))
-        Text("What's on the timeline", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-        Bullet("① scene — a day→night landscape; sun arcs & sets, the frame grades day→dusk→night (scene's own motion), with a slow push-in (a scale keyframe track on the layer).")
-        Bullet("② particles — cherry-blossom petals drifting down (OGParticles.PETALS), composited with blend \"plus\".")
-        Bullet("③ action-FX — a forked lightning bolt (OGLightningView) striking into the hill, re-striking on a long gap; the unified player now plays the fx pack on the same timeline.")
+        val active = selected
+        if (active == null) {
+            Text("What's on the timeline", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            Bullet("① scene — a day→night landscape; sun arcs & sets, the frame grades day→dusk→night (scene's own motion), with a slow push-in (a scale keyframe track on the layer).")
+            Bullet("② particles — cherry-blossom petals drifting down (OGParticles.PETALS), composited with blend \"plus\".")
+            Bullet("③ action-FX — a forked lightning bolt (OGLightningView) striking into the hill, re-striking on a long gap; the unified player now plays the fx pack on the same timeline.")
+        } else {
+            Text("The one line a model turned into this movie", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            Box(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)).padding(12.dp),
+            ) {
+                Text("“${active.prompt}”", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.85f))
+            }
+            Text(
+                "Handed only OGStages.stagePrompt(…), the model emitted one JSON object; the app ran " +
+                    "OGStages.decode on that raw reply and played it — no tools, no hand-editing. Scrub it, or " +
+                    "export it to a GIF below.",
+                fontSize = 11.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+            )
+        }
 
         // ── Export: generate → play → EXPORT, the loop no Lottie/Rive runtime does ──────────────
         Spacer(Modifier.height(8.dp))
@@ -219,6 +255,19 @@ fun StageScreen() {
 }
 
 private fun check(b: Boolean) = if (b) "✓" else "✗"
+
+/** A pill that selects a describe→movie prompt (or the built-in movie). */
+@Composable
+private fun PromptChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    val bg = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+    val fg = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+    Box(
+        Modifier.clip(RoundedCornerShape(50)).background(bg).clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+    ) {
+        Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = fg)
+    }
+}
 
 @Composable
 private fun Bullet(text: String) {
