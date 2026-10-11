@@ -47,6 +47,7 @@ import com.solidkey.painpoints.ai.OGSceneMotion
 import com.solidkey.painpoints.ai.OGSceneSpec
 import com.solidkey.painpoints.ai.OGStopSpec
 import com.solidkey.painpoints.compositor.OGEasing
+import com.solidkey.painpoints.compositor.OGKeyframedFloat
 import com.solidkey.painpoints.fx.OGLightningSpec
 import com.solidkey.painpoints.image.OGImageView
 import com.solidkey.painpoints.image.loading.OGImageFileType
@@ -56,8 +57,10 @@ import com.solidkey.painpoints.look.OGLookSpec
 import com.solidkey.painpoints.particle.OGParticles
 import com.solidkey.painpoints.shape.OGShapeType
 import com.solidkey.painpoints.stage.OGStage
+import com.solidkey.painpoints.stage.OGStageLayer
 import com.solidkey.painpoints.stage.OGStageView
 import com.solidkey.painpoints.stage.OGStages
+import com.solidkey.painpoints.stage.OGTapAction
 import com.solidkey.painpoints.stage.exportGif
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -84,11 +87,21 @@ fun StageScreen() {
     // The built-in movie, authored once. It is encoded to JSON and decoded back before playing, so
     // what the player renders is literally what came off the wire — exactly what a model's reply does.
     val builtIn = remember { OGStages.decode(OGStages.encode(buildMovie())) }
+    // An INTERACTIVE movie: its word layers carry onTap triggers, so a finger springs them to life.
+    // Round-tripped through the codec like the rest, proving the trigger is just data on the wire.
+    val interactiveStage = remember { OGStages.decode(OGStages.encode(buildInteractiveMovie())) }
 
     // "Describe → movie": pick a one-line prompt and play the movie a model wrote from it (decoded from
     // its raw JSON reply, unchanged). null = the built-in day→night movie.
     var selected by remember { mutableStateOf<ShowcaseMovie?>(null) }
-    val stage = remember(selected) { selected?.let { OGStages.decode(it.json) } ?: builtIn }
+    var interactive by remember { mutableStateOf(false) }
+    val stage = remember(selected, interactive) {
+        when {
+            interactive -> interactiveStage
+            selected != null -> OGStages.decode(selected!!.json)
+            else -> builtIn
+        }
+    }
     val jsonChars = remember(stage) { OGStages.encode(stage).length }
 
     var scrubbing by remember { mutableStateOf(false) }
@@ -115,7 +128,8 @@ fun StageScreen() {
         Text(
             "A single OGStage document = a timeline of layers. One generator emits it, one player plays it. " +
                 "Tap a one-line prompt below to watch a movie a language model wrote from it — scene + " +
-                "particles + action-FX + a styled-text title, decoded from its raw JSON reply and played unchanged.",
+                "particles + action-FX + a styled-text title, decoded from its raw JSON reply and played unchanged. " +
+                "Or pick 🖐️ Interactive and poke the movie: layers can now carry an onTap trigger that springs them to life.",
             fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f),
         )
 
@@ -125,9 +139,10 @@ fun StageScreen() {
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            PromptChip("🎞️ Built-in", selected == null) { selected = null; scrubbing = false; scrubT = 0f }
+            PromptChip("🎞️ Built-in", selected == null && !interactive) { selected = null; interactive = false; scrubbing = false; scrubT = 0f }
+            PromptChip("🖐️ Interactive", interactive) { interactive = true; selected = null; scrubbing = false; scrubT = 0f }
             for (movie in SHOWCASE_MOVIES) {
-                PromptChip(movie.label, selected === movie) { selected = movie; scrubbing = false; scrubT = 0f }
+                PromptChip(movie.label, selected === movie && !interactive) { selected = movie; interactive = false; scrubbing = false; scrubT = 0f }
             }
         }
 
@@ -168,7 +183,12 @@ fun StageScreen() {
 
         Spacer(Modifier.height(2.dp))
         val active = selected
-        if (active == null) {
+        if (interactive) {
+            Text("👆 Tap the words", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            Bullet("Each word is a layer with an onTap trigger — a finger springs it to life: BOUNCE / SPIN / SHAKE are spring-driven reactions that reuse the dynamics pack's OGSpring, so they settle with real physics.")
+            Bullet("Pure data: the trigger round-trips through the OGStages codec (a model can author it too). The hit area is the layer box, so taps fall through the non-interactive title straight to the words.")
+            Bullet("Still until you poke it (live = ✗) — interactivity adds no per-frame cost until a reaction is in flight. The player drives the spring; an exported GIF bakes the base timeline (taps are a live-player thing).")
+        } else if (active == null) {
             Text("What's on the timeline", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             Bullet("① scene — a day→night landscape; sun arcs & sets, the frame grades day→dusk→night (scene's own motion), with a slow push-in (a scale keyframe track on the layer).")
             Bullet("② particles — cherry-blossom petals drifting down (OGParticles.PETALS), composited with blend \"plus\".")
@@ -368,4 +388,40 @@ private fun buildMovie(): OGStage = OGStage.of(
     width = 1600,
     height = 900,
     durationMs = 6800L,
+)
+
+// --- The INTERACTIVE movie: tappable word-layers, each a different spring reaction ----------
+
+/** One tappable word: the whole text layer is the hit target (a sub-1 [scale] shrinks its box to a
+ *  zone so the three words don't overlap), and its [action] springs the word on tap. */
+private fun wordChip(id: String, label: String, y: Float, action: OGTapAction, color: String): OGStageLayer =
+    OGStages.text(
+        id = id,
+        text = label,
+        size = 0.42f, // em height as a fraction of stage height; combined with the 0.26 scale below ≈ 0.11
+        color = color,
+        bold = true,
+        scale = OGKeyframedFloat.const(0.26f),
+        y = OGKeyframedFloat.const(y),
+        onTap = OGStages.tap(action, strength = 1.1f, durationMs = 680L),
+    )
+
+/** A still stage of three tappable words — poke each and it springs (bounce / spin / shake). The title
+ *  and hint are plain non-interactive layers; taps pass through them to the words behind. */
+private fun buildInteractiveMovie(): OGStage = OGStage.of(
+    OGStages.solid("bg", "#141733"),
+    OGStages.text(
+        "title", "TAP THE WORDS", size = 0.085f, color = "#8FA6FF", bold = true,
+        y = OGKeyframedFloat.const(-0.40f),
+    ),
+    OGStages.text(
+        "hint", "each one springs to life", size = 0.05f, color = "#5D6BA8",
+        y = OGKeyframedFloat.const(-0.30f),
+    ),
+    wordChip("w-bounce", "BOUNCE", -0.12f, OGTapAction.BOUNCE, "#FFD54A"),
+    wordChip("w-spin", "SPIN", 0.10f, OGTapAction.SPIN, "#4ADFA0"),
+    wordChip("w-shake", "SHAKE", 0.32f, OGTapAction.SHAKE, "#FF6FA0"),
+    width = 1600,
+    height = 900,
+    durationMs = 4000L,
 )
