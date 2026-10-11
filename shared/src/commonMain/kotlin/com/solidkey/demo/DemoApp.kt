@@ -36,6 +36,9 @@ enum class DemoScreen(val title: String, val emoji: String, val blurb: String) {
     Animate("Animate a Static Image", "✨", "Take a fully-static SVG and wrap it in KMPMedia's animation primitives — toggle Scale/Rotate/Fade/Slide and watch it come alive."),
     RuntimeSvg("Runtime-editable SVG", "🎨", "Load an SVG once, then change any node by id at runtime — recolour, rotate, move — bound to Compose state. A live gauge whose needle and zones follow a slider. 'SVG as a live template', the same code on Android & iOS."),
     AiVector("AI vector (describe → shape)", "🤖", "KMPMedia's vector primitives are just data, so a language model can produce them. Decode a model's JSON reply into a live polygon lasso clipping a photo, and into an SVG patch driving a gauge — via OGAiVector, with no AI SDK or network in the library."),
+    Vectorized("Photo → vector, cranked", "🦁", "A photo traced into a dense triangle mesh — ~20,000 triangles, each one an OGSceneSpec polygon+fill decoded by the library — so a real lion renders from pure vector data. Then re-theme it day↔night with a shimmer, from a cached layer at 60fps: realistic AND still live, the far end of the realism↔editability dial."),
+    SceneFx("Richer stills (texture · glow · scatter)", "🌄", "The 1.39.0 scene-paint fields: a region can carry a procedural noise TEXTURE (fur/grass), an additive GLOW halo (sun bloom, backlit rim), and a SCATTER that stamps one shape into a whole field (trees/tufts). Shown flat vs. with each field, driven through the real OGAiVector encode→decode→expand path. Pure data, 60fps, same code on Android & iOS."),
+    MeshRig("Clickable joints (bend the mesh)", "🦁", "The SAME dense lion mesh as 'Photo → vector', but RIGGED. Twelve joints are bound to the triangle vertices by linear-blend skinning (OGRig); drag any pin and the mesh warps under your finger, then springs home. This is the one case the rasterise-once/cache trick can't cover — while you drag, every vertex is re-skinned and the mesh re-drawn each frame. Pure maths, same code on Android & iOS."),
     Video("Video Playback", "🎬", "Stream a clip through one cross-platform OGAVPlayer (ExoPlayer on Android, AVPlayer on iOS) and re-frame it live inside any shape — circle, triangle, diamond — with transport controls, loop, and load any URL."),
     MorphClip("Morph the clip itself", "🫧", "The clip MASK animates circle → diamond → triangle → lasso while a video (and a GIF) keep playing underneath. One OGMorphShape drives every surface's clipShape — clipping moving media to a morphing outline, 60fps, same code on Android & iOS."),
     BoilingLines("Boiling lines (moving style)", "🖊️", "A prototype 'moving style': OGBoil jitters every vertex of an outline a few times a second — the hand-drawn 'living line'. Drawn as a stroke it's a wiggly line; dropped into a clipShape it's a living media edge. Pure, deterministic, zero-dependency. The first member of a procedural com.solidkey.painpoints.style family."),
@@ -78,6 +81,9 @@ fun DemoApp() {
                         DemoScreen.Animate -> AnimateScreen()
                         DemoScreen.RuntimeSvg -> RuntimeSvgScreen()
                         DemoScreen.AiVector -> AiVectorScreen()
+                        DemoScreen.Vectorized -> VectorizedScreen()
+                        DemoScreen.SceneFx -> SceneFxScreen()
+                        DemoScreen.MeshRig -> MeshRigScreen()
                         DemoScreen.Video -> VideoScreen()
                         DemoScreen.MorphClip -> MorphClipScreen()
                         DemoScreen.BoilingLines -> BoilingLinesScreen()
