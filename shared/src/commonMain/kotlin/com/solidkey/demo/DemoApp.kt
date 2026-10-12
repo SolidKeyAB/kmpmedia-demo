@@ -34,6 +34,7 @@ import com.solidkey.painpoints.ui.test.TestMainUI
 /** Top-level demo destinations. */
 enum class DemoScreen(val title: String, val emoji: String, val blurb: String) {
     Stage("One JSON → a whole movie", "🎞️", "The OGStage capstone: a single serializable document = a timeline of layers (scene + particles + action-FX + styled-text titles) that ONE generator emits and ONE player plays. Tap a one-line prompt to watch a movie a language model wrote from it (STORM / HANAMI / RUSH), decoded from its raw JSON reply and played unchanged. Authored as data, played at 60fps, scrubbable, exportable to GIF/MP4. A media toolkit evolved into a model-authorable animation engine. Same code on Android & iOS."),
+    Describe("Describe → movie (live)", "🪄", "Type a sentence and get a real, playable movie ON THE SPOT — no key, no network. The describe→movie loop closed end-to-end: OGOfflineStageAuthor reads the words for mood + subject and assembles a scene, particles, an action-FX beat and a styled title (same words = same movie). A real language model writes into the SAME OGStage format through the same screen (bring your own key via OGStageAuthoring.modelAuthor). Deterministic, 60fps, exportable, same code on Android & iOS. No other KMP animation library is model-authorable."),
     Animate("Animate a Static Image", "✨", "Take a fully-static SVG and wrap it in KMPMedia's animation primitives — toggle Scale/Rotate/Fade/Slide and watch it come alive."),
     RuntimeSvg("Runtime-editable SVG", "🎨", "Load an SVG once, then change any node by id at runtime — recolour, rotate, move — bound to Compose state. A live gauge whose needle and zones follow a slider. 'SVG as a live template', the same code on Android & iOS."),
     AiVector("AI vector (describe → shape)", "🤖", "KMPMedia's vector primitives are just data, so a language model can produce them. Decode a model's JSON reply into a live polygon lasso clipping a photo, and into an SVG patch driving a gauge — via OGAiVector, with no AI SDK or network in the library."),
@@ -80,6 +81,7 @@ fun DemoApp() {
                 else -> DemoScaffold(title = screen.title, onBack = { current = null }) {
                     when (screen) {
                         DemoScreen.Stage -> StageScreen()
+                        DemoScreen.Describe -> DescribeScreen()
                         DemoScreen.Animate -> AnimateScreen()
                         DemoScreen.RuntimeSvg -> RuntimeSvgScreen()
                         DemoScreen.AiVector -> AiVectorScreen()
