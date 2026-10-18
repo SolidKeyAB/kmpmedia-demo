@@ -35,6 +35,11 @@ import com.solidkey.painpoints.ui.test.TestMainUI
 enum class DemoScreen(val title: String, val emoji: String, val blurb: String) {
     Stage("One JSON → a whole movie", "🎞️", "The OGStage capstone: a single serializable document = a timeline of layers (scene + particles + action-FX + styled-text titles) that ONE generator emits and ONE player plays. Tap a one-line prompt to watch a movie a language model wrote from it (STORM / HANAMI / RUSH), decoded from its raw JSON reply and played unchanged. Authored as data, played at 60fps, scrubbable, exportable to GIF/MP4. A media toolkit evolved into a model-authorable animation engine. Same code on Android & iOS."),
     Describe("Describe → movie (live)", "🪄", "Type a sentence and get a real, playable movie ON THE SPOT — no key, no network. The describe→movie loop closed end-to-end: OGOfflineStageAuthor reads the words for mood + subject and assembles a scene, particles, an action-FX beat and a styled title (same words = same movie). A real language model writes into the SAME OGStage format through the same screen (bring your own key via OGStageAuthoring.modelAuthor). Deterministic, 60fps, exportable, same code on Android & iOS. No other KMP animation library is model-authorable."),
+    LivingRig("Poke a living vector (rig)", "🫳", "A compiled illustration grabbable BY PART: OGRig.sceneJoints drops one semantic pin per region (body / head / arm / tail), OGSceneRigView warps the mesh under your finger and springs it home — or flip to code-driven and a scripted wave drives the SAME rig through the new `pose` param. Pure linear-blend skinning, 60fps, same code on Android & iOS."),
+    Skin("Procedural skins (scales · hide · weave)", "🐊", "OGSkin grows a seamless, repeating material — reptile scales, an animal hide, a woven fabric — and fills any shape with Modifier.ogSkin. One cached tile + a GPU ImageShader (no per-pixel work, no runtime shader), plus optional raised-edge bumps. Author-as-JSON, 60fps, same code on Android & iOS."),
+    Light("Light, shade, sheen & spot", "💡", "Four shape-aware lighting modifiers from com.solidkey.painpoints.light: a directional form-shade (ogLight), a lifted drop/contact shadow (ogShadow), a sweeping gloss (ogSheen) and a radial scene spotlight (ogSpot). Each a serializable spec with a JSON codec; no runtime shader, 60fps, same code on Android & iOS."),
+    Fog("Fog · smoke · mist · steam", "🌫️", "OGFogView fills its bounds with soft radial-gradient puffs that drift and wander (fractal noise), wrapping toroidally into an endless seamless cloud. No per-pixel noise, no shader — deterministic from a seed, author-as-JSON (four presets), 60fps, same code on Android & iOS."),
+    Control("One-call hand-drawn buttons", "🔘", "OGControl bundles a whole button — fill, a cached roughened ink edge, a tap + pressed-state, an optional seasonal garnish and a styled vector label — behind one composable + a serializable OGControlSpec skin. A control is configured, not hand-assembled. 60fps, same code on Android & iOS."),
     Animate("Animate a Static Image", "✨", "Take a fully-static SVG and wrap it in KMPMedia's animation primitives — toggle Scale/Rotate/Fade/Slide and watch it come alive."),
     RuntimeSvg("Runtime-editable SVG", "🎨", "Load an SVG once, then change any node by id at runtime — recolour, rotate, move — bound to Compose state. A live gauge whose needle and zones follow a slider. 'SVG as a live template', the same code on Android & iOS."),
     AiVector("AI vector (describe → shape)", "🤖", "KMPMedia's vector primitives are just data, so a language model can produce them. Decode a model's JSON reply into a live polygon lasso clipping a photo, and into an SVG patch driving a gauge — via OGAiVector, with no AI SDK or network in the library."),
@@ -82,6 +87,11 @@ fun DemoApp() {
                     when (screen) {
                         DemoScreen.Stage -> StageScreen()
                         DemoScreen.Describe -> DescribeScreen()
+                        DemoScreen.LivingRig -> LivingRigScreen()
+                        DemoScreen.Skin -> SkinScreen()
+                        DemoScreen.Light -> LightScreen()
+                        DemoScreen.Fog -> FogScreen()
+                        DemoScreen.Control -> ControlScreen()
                         DemoScreen.Animate -> AnimateScreen()
                         DemoScreen.RuntimeSvg -> RuntimeSvgScreen()
                         DemoScreen.AiVector -> AiVectorScreen()
