@@ -245,6 +245,8 @@ private fun describeIngredients(stage: com.solidkey.painpoints.stage.OGStage): L
             is OGStageContent.SpeedLines -> "💨 speed lines — ${c.speedLines.count} converging streaks"
             is OGStageContent.Slash -> "🗡️ slash ribbon"
             is OGStageContent.Text -> "🔤 title — “${c.text}” (${c.style?.ops?.firstOrNull()?.op ?: "clean"})"
+            is OGStageContent.Image -> "🖼️ cutout — ${c.frames.size} frame${if (c.frames.size == 1) "" else "s"}"
+            is OGStageContent.Cloth -> "🌬️ cloth strip — a wind-blown ${c.cloth.name ?: "banner"}"
             is OGStageContent.Solid -> "🎨 solid fill"
         }
     }
